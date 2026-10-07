@@ -5,7 +5,11 @@ Hệ thống webapp theo dõi, xếp hạng, tính thưởng/phạt và phân t�
 ---
 
 ## 📌 Tài Liệu Dành Riêng Cho Người Mới (Bàn Giao Cho Tùng)
-> 🌟 **Nếu Tùng chưa thạo kỹ thuật:** Hãy nhấp đúp mở file **[`huong_dan_ban_giao_tung.html`](huong_dan_ban_giao_tung.html)** trên bất kỳ trình duyệt nào (Chrome, Edge). Đây là cẩm nang trực quan "cầm tay chỉ việc" từ cài đặt Git, Node.js, Google Antigravity, kích hoạt gói Ultra, lấy API Strava, đến kho câu lệnh Prompt mẫu để nâng cấp app!
+> 🌟 **Nếu Tùng chưa thạo kỹ thuật:**
+> - 🌐 **Xem trực tuyến ngay tại**: 👉 **[https://nhhacic.github.io/cnhp-challenge-2026/](https://nhhacic.github.io/cnhp-challenge-2026/)** 👈 *(Mở được trên cả điện thoại & máy tính)*
+> - Hoặc mở trực tiếp file nội bộ: **[`huong_dan_ban_giao_tung.html`](huong_dan_ban_giao_tung.html)** trên máy.
+> 
+> Đây là cẩm nang trực quan "cầm tay chỉ việc" từ cài đặt Git, Node.js, Google Antigravity, kích hoạt gói Ultra, lấy API Strava, đến kho câu lệnh Prompt mẫu để nâng cấp app!
 
 ---
 
