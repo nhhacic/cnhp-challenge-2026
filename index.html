@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cẩm Nang Bàn Giao & Hướng Dẫn Vận Hành CNHP Challenge 2026 (Dành cho Tùng)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .step-number {
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    }
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🏃‍♂️</span>
+        <div>
+          <h1 class="font-extrabold text-slate-900 text-lg leading-tight flex items-center gap-2">
+            CNHP Challenge Thu Đông 2026
+            <span class="bg-indigo-100 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-semibold">Tài liệu bàn giao</span>
+          </h1>
+          <p class="text-xs text-slate-500">Cẩm nang trọn gói từng bước cho Tùng (Non-tech friendly)</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3 text-sm">
+        <a href="#checklist" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200 hover:bg-emerald-100 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Checklist tiến độ (<span id="completed-count">0</span>/8)
+        </a>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          In / Lưu PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="bg-gradient-to-b from-indigo-900 via-indigo-800 to-slate-900 text-white py-14 px-4 sm:px-6 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+      <div class="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 px-3 py-1.5 rounded-full text-indigo-200 text-sm mb-4">
+        ✨ Chào Tùng! Đừng lo lắng nếu bạn chưa từng viết code!
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4">
+        Làm Chủ Webapp CNHP Challenge <br class="hidden sm:inline" />
+        Bằng Trợ Lý AI <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-300">Antigravity</span>
+      </h2>
+      <p class="text-indigo-100 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+        Với sự trợ giúp của AI Google Antigravity, Tùng chỉ cần đóng vai trò <strong>"Kiến trúc sư / Quản lý sản phẩm"</strong>: nói ý tưởng bằng tiếng Việt thông thường. Toàn bộ việc viết code, kiểm thử, vá lỗi sẽ do AI tự động thực hiện 100%!
+      </p>
+
+      <div class="mt-8 flex flex-wrap justify-center gap-3 text-xs sm:text-sm">
+        <span class="bg-white/10 px-3.5 py-1.5 rounded-full backdrop-blur-sm border border-white/10">⏱️ Thời gian cài đặt: ~15 phút</span>
+        <span class="bg-white/10 px-3.5 py-1.5 rounded-full backdrop-blur-sm border border-white/10">💻 Dành cho hệ điều hành Windows</span>
+        <span class="bg-white/10 px-3.5 py-1.5 rounded-full backdrop-blur-sm border border-white/10">🚀 Không yêu cầu kiến thức lập trình</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN CONTAINER -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+      <!-- SIDEBAR MỤC LỤC -->
+      <aside class="hidden lg:block lg:col-span-1">
+        <div class="sticky top-24 glass-card rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wider text-indigo-600">Lộ Trình Từng Bước</h3>
+          <nav class="space-y-1 text-sm font-medium">
+            <a href="#step-1" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">1</span>
+              Cài Git & Node.js
+            </a>
+            <a href="#step-2" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">2</span>
+              Cài Antigravity & Gói Ultra
+            </a>
+            <a href="#step-3" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">3</span>
+              Tải Code Từ GitHub
+            </a>
+            <a href="#step-4" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">4</span>
+              Tạo & Cấu Hình Strava API
+            </a>
+            <a href="#step-5" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">5</span>
+              Khởi Chạy Web Lần Đầu
+            </a>
+            <a href="#step-6" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">6</span>
+              Cách Làm Việc Với AI
+            </a>
+            <a href="#step-7" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition">
+              <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-bold">7</span>
+              Mẫu Prompt Nâng Cấp App
+            </a>
+            <a href="#troubleshooting" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-rose-700 text-xs flex items-center justify-center font-bold">!</span>
+              Xử Lý Các Lỗi Thường Gặp
+            </a>
+          </nav>
+
+          <div class="pt-4 border-t border-slate-200">
+            <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-100 text-xs text-indigo-900 leading-relaxed">
+              💡 <strong>Mẹo nhỏ:</strong> Nếu gặp bất kỳ chữ đỏ hay lỗi gì, Tùng chỉ cần <em>Copy nguyên thông báo lỗi</em> gửi vào khung chat Antigravity, AI sẽ tự sửa ngay lập tức!
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="lg:col-span-3 space-y-12">
+
+        <!-- CHECKLIST TỔNG HỢP -->
+        <div id="checklist" class="glass-card rounded-2xl p-6 border-2 border-indigo-100 shadow-sm bg-gradient-to-br from-white to-indigo-50/40">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                📋 Bảng Tích Tiến Độ Thực Hiện
+              </h3>
+              <p class="text-xs text-slate-500">Tùng hãy tích vào từng ô sau khi làm xong mỗi bước để theo dõi tiến độ nhé!</p>
+            </div>
+            <div class="text-right">
+              <span id="percent-badge" class="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-full">0% Xong</span>
+            </div>
+          </div>
+
+          <div class="w-full bg-slate-200 rounded-full h-2.5 mb-5 overflow-hidden">
+            <div id="progress-bar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>1. Đã cài đặt Git for Windows</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>2. Đã cài đặt Node.js (LTS)</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>3. Đã cài & đăng nhập Google Antigravity</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>4. Đã kích hoạt gói Ultra (Gemini Pro/Flash)</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>5. Đã tải code về máy và mở trong Antigravity</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>6. Đã lấy Strava API & tạo file <code>.env.local</code></span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>7. Đã chạy <code>npm run dev</code> và mở được web</span>
+            </label>
+            <label class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 cursor-pointer transition">
+              <input type="checkbox" class="task-checkbox w-4 h-4 text-indigo-600 rounded" onchange="updateProgress()">
+              <span>8. Đã thử gửi 1 prompt đầu tiên cho Antigravity</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- BƯỚC 1 -->
+        <section id="step-1" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">01</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Cài Đặt Bộ Công Cụ Nền Tảng: Git & Node.js</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-6">
+            Đây là 2 phần mềm nền tảng cơ bản nhất bắt buộc phải có trên máy tính để máy tính có thể kéo code về và chạy thử trang web. Bạn chỉ cần cài đặt 1 lần duy nhất!
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Cài Git -->
+            <div class="p-5 rounded-xl border border-slate-200 bg-white space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">📦</span>
+                <h4 class="font-bold text-slate-900">1. Cài Git for Windows</h4>
+              </div>
+              <p class="text-xs text-slate-500 leading-relaxed">
+                Giúp máy tính hiểu được các thao tác đồng bộ với GitHub để lấy mã nguồn dự án.
+              </p>
+              <ol class="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+                <li>Truy cập: <a href="https://git-scm.com/download/win" target="_blank" class="text-indigo-600 font-semibold underline">git-scm.com/download/win</a></li>
+                <li>Chọn <strong>"Click here to download"</strong> (bản 64-bit cho Windows).</li>
+                <li>Mở file tải về lên, bấm <strong>Next liên tục</strong> (giữ nguyên mặc định) cho đến khi bấm <strong>Install</strong> -> <strong>Finish</strong>.</li>
+              </ol>
+            </div>
+
+            <!-- Cài Node.js -->
+            <div class="p-5 rounded-xl border border-slate-200 bg-white space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">⚡</span>
+                <h4 class="font-bold text-slate-900">2. Cài Node.js (Bản LTS)</h4>
+              </div>
+              <p class="text-xs text-slate-500 leading-relaxed">
+                Môi trường chạy web Next.js trên máy của bạn.
+              </p>
+              <ol class="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+                <li>Truy cập: <a href="https://nodejs.org/" target="_blank" class="text-indigo-600 font-semibold underline">nodejs.org</a></li>
+                <li>Bấm vào nút màu xanh to có chữ <strong>LTS (Recommended for Most Users)</strong>.</li>
+                <li>Mở file vừa tải về, bấm <strong>Next</strong> -> tích đồng ý điều khoản -> <strong>Next liên tục</strong> -> <strong>Finish</strong>.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="mt-5 p-3.5 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
+            <span class="text-slate-600">Kiểm tra cài thành công: Mở <strong>PowerShell</strong> và gõ lệnh sau:</span>
+            <div class="flex items-center gap-2">
+              <code class="bg-white px-2.5 py-1 rounded border font-mono text-indigo-600">node -v; git --version</code>
+              <button onclick="copyText('node -v; git --version', this)" class="px-2 py-1 bg-white hover:bg-slate-200 border rounded text-slate-700 transition">Copy</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- BƯỚC 2 -->
+        <section id="step-2" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">02</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Cài Đặt Google Antigravity & Kích Hoạt Gói Ultra</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-6">
+            <strong>Google Antigravity</strong> là phần mềm lập trình AI thế hệ mới (Pair Programmer) do Google phát triển. Nó thông minh hơn ChatGPT hay Copilot thông thường vì có thể tự đọc toàn bộ dự án, tự gõ lệnh, tự sửa file và tự kiểm thử!
+          </p>
+
+          <div class="space-y-4 text-sm text-slate-700">
+            <div class="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 flex gap-3.5 items-start">
+              <span class="text-xl">1️⃣</span>
+              <div>
+                <h4 class="font-bold text-indigo-950 mb-1">Tải và cài đặt Antigravity</h4>
+                <p class="text-xs text-slate-600 mb-2">
+                  Tải bản cài đặt chính thức dành cho Windows từ trang chủ <a href="https://antigravity.google/" target="_blank" class="text-indigo-600 font-semibold underline">antigravity.google</a>.
+                </p>
+                <p class="text-xs text-slate-600">
+                  Sau khi cài xong, mở ứng dụng lên và tiến hành đăng nhập bằng tài khoản Google (Gmail) của Tùng.
+                </p>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl border border-amber-100 bg-amber-50/50 flex gap-3.5 items-start">
+              <span class="text-xl">2️⃣</span>
+              <div>
+                <h4 class="font-bold text-amber-950 mb-1">Đăng ký & Nâng cấp Gói Ultra (Google One AI Premium)</h4>
+                <p class="text-xs text-slate-600 mb-2">
+                  Gói Ultra cho phép sử dụng mô hình trí tuệ nhân tạo mạnh nhất (Gemini Pro / Flash High Reasoning), cửa sổ ngữ cảnh khổng lồ (2 triệu token) để AI "nhìn thấu" toàn bộ mã nguồn của dự án mà không bị quên hoặc nhầm lẫn.
+                </p>
+                <ul class="text-xs text-slate-600 list-disc list-inside space-y-1">
+                  <li>Truy cập <a href="https://one.google.com/explore-plan/gemini-advanced" target="_blank" class="text-amber-700 font-semibold underline">Google One AI Premium</a> để kích hoạt gói cước.</li>
+                  <li>Nếu tài khoản của Tùng đã có Gemini Advanced / Google AI Pro thì đã có sẵn quyền Ultra.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl border border-slate-200 bg-white flex gap-3.5 items-start">
+              <span class="text-xl">3️⃣</span>
+              <div>
+                <h4 class="font-bold text-slate-900 mb-1">Chọn Mô Hình AI Đỉnh Nhất Trong Antigravity</h4>
+                <p class="text-xs text-slate-600">
+                  Trong Antigravity, nhìn xuống góc dưới cùng bên phải của ô chat (hoặc vào biểu tượng bánh răng <strong>Settings</strong> ➔ <strong>Model Selection</strong>) ➔ Chọn <strong>Gemini 3.8 Flash (High)</strong> hoặc <strong>Gemini Pro</strong> để có khả năng tư duy và lập trình cao nhất.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BƯỚC 3 -->
+        <section id="step-3" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">03</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Lấy Toàn Bộ Mã Nguồn Từ GitHub Về Máy</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            Kho lưu trữ chính thức của dự án đã được đẩy lên GitHub tại địa chỉ: <br>
+            <a href="https://github.com/nhhacic/cnhp-challenge-2026" target="_blank" class="text-indigo-600 font-semibold underline break-all">https://github.com/nhhacic/cnhp-challenge-2026</a>
+          </p>
+
+          <div class="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs sm:text-sm relative group mb-4">
+            <div class="text-slate-400 mb-2 font-sans font-medium text-xs">Cách làm nhanh nhất: Mở PowerShell (hoặc Terminal) và dán lần lượt 2 lệnh sau:</div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-emerald-400">git clone https://github.com/nhhacic/cnhp-challenge-2026.git</span>
+                <button onclick="copyText('git clone https://github.com/nhhacic/cnhp-challenge-2026.git', this)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs">Copy</button>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-emerald-400">cd cnhp-challenge-2026</span>
+                <button onclick="copyText('cd cnhp-challenge-2026', this)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 space-y-1">
+            <strong>📂 Mở dự án trong Antigravity:</strong>
+            <p>Mở ứng dụng <strong>Antigravity</strong> ➔ Chọn menu <strong>File</strong> ➔ <strong>Open Folder...</strong> ➔ Tìm và chọn đúng thư mục <code>cnhp-challenge-2026</code> vừa tải về. Bây giờ Tùng đã sẵn sàng làm việc!</p>
+          </div>
+        </section>
+
+        <!-- BƯỚC 4 -->
+        <section id="step-4" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">04</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Đăng Ký & Thiết Lập Strava API (Đồng Bộ Chạy Bộ)</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            Để webapp có thể tự động lấy bài chạy bộ từ ứng dụng Strava của các vận động viên, chúng ta cần một chiếc "chìa khóa kết nối" (Strava API). Việc đăng ký này hoàn toàn <strong>miễn phí 100%</strong>.
+          </p>
+
+          <div class="space-y-4 text-xs sm:text-sm text-slate-700">
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+              <div class="font-bold text-slate-900 flex items-center gap-2">
+                <span>1.</span> Đăng nhập và tạo ứng dụng API Strava:
+              </div>
+              <p class="text-slate-600">
+                Truy cập đường dẫn: <a href="https://www.strava.com/settings/api" target="_blank" class="text-indigo-600 underline font-semibold">https://www.strava.com/settings/api</a> (đăng nhập tài khoản Strava nếu chưa đăng nhập).
+              </p>
+            </div>
+
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+              <div class="font-bold text-slate-900 flex items-center gap-2">
+                <span>2.</span> Điền mẫu đăng ký theo thông số chuẩn sau:
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+                <div class="p-2.5 bg-slate-50 rounded-lg border">
+                  <span class="font-semibold text-slate-500 block">Application Name:</span>
+                  <code class="text-slate-900 font-bold">CNHP Challenge 2026</code>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg border">
+                  <span class="font-semibold text-slate-500 block">Category:</span>
+                  <span class="text-slate-900 font-medium">Sports Event hoặc Health/Fitness</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg border">
+                  <span class="font-semibold text-slate-500 block">Club:</span>
+                  <span class="text-slate-400">Để trống</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg border">
+                  <span class="font-semibold text-slate-500 block">Website:</span>
+                  <code class="text-slate-900">http://localhost:3026</code>
+                </div>
+                <div class="p-2.5 bg-amber-50 rounded-lg border border-amber-200 sm:col-span-2">
+                  <span class="font-semibold text-amber-800 block">⚠️ Authorization Callback Domain (Cực kỳ quan trọng):</span>
+                  <div class="flex items-center justify-between mt-1">
+                    <code class="text-rose-600 font-bold text-sm bg-white px-2 py-0.5 rounded border border-rose-200">localhost</code>
+                    <span class="text-slate-500 text-[11px]">(Chỉ gõ chữ "localhost", KHÔNG có http:// hay số cổng :3026)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+              <div class="font-bold text-slate-900 flex items-center gap-2">
+                <span>3.</span> Lấy mã số và điền vào dự án:
+              </div>
+              <p class="text-slate-600">
+                Sau khi bấm <strong>Create</strong>, Strava sẽ cung cấp cho bạn <strong>Client ID</strong> (dãy số) và <strong>Client Secret</strong> (bấm nút "Show" để xem dãy ký tự bí mật).
+              </p>
+              <div class="p-3 bg-slate-900 text-slate-200 rounded-lg font-mono text-xs">
+                <div class="text-slate-400 mb-1">// Tạo 1 file tên là .env.local ở thư mục gốc dự án và dán nội dung sau vào:</div>
+                <div>NEXT_PUBLIC_STRAVA_CLIENT_ID=<span class="text-amber-300">Dãy_Số_Client_ID</span></div>
+                <div>STRAVA_CLIENT_ID=<span class="text-amber-300">Dãy_Số_Client_ID</span></div>
+                <div>STRAVA_CLIENT_SECRET=<span class="text-amber-300">Dãy_Ký_Tự_Client_Secret</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BƯỚC 5 -->
+        <section id="step-5" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">05</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Khởi Chạy Ứng Dụng Web Lần Đầu Tiên</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-6">
+            Bây giờ là khoảnh khắc kỳ diệu nhất: cài các linh kiện cần thiết và khởi động webapp chạy trên chính chiếc máy tính của bạn!
+          </p>
+
+          <div class="space-y-4">
+            <!-- Bước 5.1 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-sm text-slate-800">1. Tải các gói thư viện (Chỉ cần chạy 1 lần):</span>
+                <button onclick="copyText('npm install', this)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded">Copy lệnh</button>
+              </div>
+              <div class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-xs">
+                npm install
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Mất khoảng 30s - 1 phút để tải về.</p>
+            </div>
+
+            <!-- Bước 5.2 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-sm text-slate-800">2. Chạy thử 26 ca kiểm tra thể lệ tự động (Automated Tests):</span>
+                <button onclick="copyText('npm run test:rules', this)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded">Copy lệnh</button>
+              </div>
+              <div class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-xs">
+                npm run test:rules
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Sẽ xuất hiện 26 dòng <span class="text-emerald-600 font-bold">✅ [PASS]</span> chứng minh tất cả các điều luật giải chạy Thu Đông đã được lập trình chính xác 100%.</p>
+            </div>
+
+            <!-- Bước 5.3 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-sm text-slate-800">3. Bật máy chủ phát triển (Dev Server):</span>
+                <button onclick="copyText('npm run dev', this)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded">Copy lệnh</button>
+              </div>
+              <div class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg font-mono text-xs">
+                npm run dev
+              </div>
+              <p class="text-xs text-slate-500 mt-2">
+                Mở trình duyệt (Chrome, Edge) và gõ địa chỉ: <br>
+                👉 <a href="http://localhost:3026" target="_blank" class="text-indigo-600 font-bold text-sm underline">http://localhost:3026</a>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- BƯỚC 6 -->
+        <section id="step-6" class="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">06</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Cách Làm Việc & "Giao Việc" Cho AI Antigravity</h3>
+          </div>
+          <p class="text-slate-600 text-sm leading-relaxed mb-6">
+            Tùng không cần phải nhớ code hay cấu trúc file phức tạp. Hãy coi Antigravity như một <strong>lập trình viên cao cấp ngồi ngay bên cạnh bạn</strong>. Bạn chỉ cần giao việc rõ ràng bằng tiếng Việt!
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-200 space-y-2">
+              <div class="text-lg">🎯</div>
+              <h4 class="font-bold text-indigo-900 text-sm">1. Nói rõ mục tiêu</h4>
+              <p class="text-indigo-800 leading-relaxed">
+                Nói rõ bạn muốn thêm nút gì, đổi màu gì, sửa quy tắc tính tiền như thế nào. Ví dụ: <em>"Đổi màu thanh menu sang màu cam mùa thu"</em>.
+              </p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-cyan-50 border border-cyan-200 space-y-2">
+              <div class="text-lg">📎</div>
+              <h4 class="font-bold text-cyan-900 text-sm">2. Dùng phím @ để trỏ file</h4>
+              <p class="text-cyan-800 leading-relaxed">
+                Khi gõ trong ô chat, bấm phím <code>@</code> sẽ hiện danh sách file. Ví dụ chọn <code>@challenge_data.json</code> để bảo AI thêm thành viên mới.
+              </p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+              <div class="text-lg">✅</div>
+              <h4 class="font-bold text-emerald-900 text-sm">3. Bấm Proceed / Chấp nhận</h4>
+              <p class="text-emerald-800 leading-relaxed">
+                Antigravity sẽ đưa ra kế hoạch và xin phép chạy lệnh hoặc chỉnh file. Tùng chỉ việc đọc và bấm <strong>Proceed</strong> hoặc <strong>Chấp thuận</strong>!
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- BƯỚC 7: MẪU PROMPT NÂNG CẤP APP -->
+        <section id="step-7" class="glass-card rounded-2xl p-6 sm:p-8 border-2 border-indigo-200 shadow-sm relative bg-gradient-to-br from-white to-indigo-50/20">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="step-number text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">07</span>
+            <div>
+              <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Kho Câu Lệnh (Prompt) Mẫu Để Tùng Nâng Cấp App Ngay</h3>
+              <p class="text-xs text-slate-500">Chỉ cần bấm "Copy Prompt" và dán vào khung chat của Antigravity!</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Mẫu 1 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>👥</span> Thêm thành viên mới hoặc điều chỉnh danh sách đội
+                </span>
+                <button onclick="copyPrompt('prompt-1', this)" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-semibold transition border border-indigo-200">
+                  Copy Prompt
+                </button>
+              </div>
+              <div id="prompt-1" class="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 border font-mono">
+Hãy kiểm tra file data/challenge_data.json và giúp tôi thêm 1 thành viên mới tên là "Nguyễn Văn An" vào đội "Chiến Binh CNHP", giới tính Nam, mục tiêu cá nhân là 20km/tuần. Sau khi thêm, hãy cập nhật lại dữ liệu hiển thị trên bảng xếp hạng.
+              </div>
+            </div>
+
+            <!-- Mẫu 2 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>💰</span> Điều chỉnh mức tiền thưởng / phạt theo thể lệ mới
+                </span>
+                <button onclick="copyPrompt('prompt-2', this)" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-semibold transition border border-indigo-200">
+                  Copy Prompt
+                </button>
+              </div>
+              <div id="prompt-2" class="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 border font-mono">
+Ban tổ chức vừa thông báo cập nhật thể lệ: mức phạt thiếu buổi chạy đổi từ 20.000đ lên 30.000đ/buổi, và thưởng cho đội Nhất tuần tăng lên 200.000đ. Hãy tìm các vị trí tính toán trong src/lib/rules-engine.ts và giao diện để cập nhật lại đúng theo số tiền mới này, đồng thời chạy lại npm run test:rules để đảm bảo không bị lỗi logic.
+              </div>
+            </div>
+
+            <!-- Mẫu 3 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>📊</span> Thêm nút xuất file Excel / CSV báo cáo tổng kết
+                </span>
+                <button onclick="copyPrompt('prompt-3', this)" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-semibold transition border border-indigo-200">
+                  Copy Prompt
+                </button>
+              </div>
+              <div id="prompt-3" class="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 border font-mono">
+Hãy thêm một nút bấm "Xuất Báo Cáo Excel" ở góc phải bảng xếp hạng. Khi người quản trị bấm vào, web sẽ tự động xuất ra file Excel hoặc CSV gồm các cột: Tên vận động viên, Đội, Tổng số km hợp lệ, Số buổi chạy, Số tiền thưởng, Số tiền phạt và Nợ km. Hãy chọn thư viện nhẹ và tối ưu nhất.
+              </div>
+            </div>
+
+            <!-- Mẫu 4 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>🎨</span> Tùy biến giao diện (Đổi màu, Banner, Hiệu ứng)
+                </span>
+                <button onclick="copyPrompt('prompt-4', this)" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-semibold transition border border-indigo-200">
+                  Copy Prompt
+                </button>
+              </div>
+              <div id="prompt-4" class="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 border font-mono">
+Tôi muốn giao diện có phong cách mùa Thu Đông rực rỡ hơn: hãy thêm hiệu ứng lá phong hoặc tuyết rơi nhẹ nhàng ở phần Countdown Banner, đổi tone màu nút bấm sang gradient ấm áp cam - đỏ thể thao, và làm cho thẻ thành tích khi chia sẻ lên mạng xã hội nhìn chuyên nghiệp và đẹp mắt hơn.
+              </div>
+            </div>
+
+            <!-- Mẫu 5 -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>🛠️</span> Khi gặp bất kỳ lỗi gì lạ
+                </span>
+                <button onclick="copyPrompt('prompt-5', this)" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-semibold transition border border-indigo-200">
+                  Copy Prompt
+                </button>
+              </div>
+              <div id="prompt-5" class="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 border font-mono">
+Tôi vừa gặp lỗi sau khi chạy ứng dụng trên máy: [DÁN TOÀN BỘ ĐOẠN CHỮ ĐỎ BÁO LỖI HOẶC CHỤP ẢNH MÀN HÌNH VÀO ĐÂY]. Hãy phân tích nguyên nhân bằng tiếng Việt đơn giản dễ hiểu và tự động sửa dứt điểm lỗi này giúp tôi nhé!
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- XỬ LÝ LỖI THƯỜNG GẶP -->
+        <section id="troubleshooting" class="glass-card rounded-2xl p-6 sm:p-8 border border-rose-200 shadow-sm relative bg-rose-50/20">
+          <div class="flex items-center gap-3 mb-6">
+            <span class="bg-rose-500 text-white font-black text-sm w-8 h-8 rounded-xl flex items-center justify-center shadow-sm">!</span>
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Xử Lý Nhanh Các Tình Huống Thường Gặp</h3>
+          </div>
+
+          <div class="space-y-4 text-xs sm:text-sm">
+            <details class="bg-white p-4 rounded-xl border border-slate-200 cursor-pointer">
+              <summary class="font-bold text-slate-900 flex items-center justify-between">
+                <span>1. Cổng 3026 bị báo "Port already in use" (Trùng cổng)</span>
+                <span class="text-slate-400 text-xs">Xem cách sửa ▾</span>
+              </summary>
+              <div class="mt-3 text-slate-600 space-y-1 pt-2 border-t text-xs">
+                <p>Nghĩa là có một cửa sổ lệnh trước đó đang chạy chưa tắt. Bạn chỉ cần mở Task Manager (nhấn <code>Ctrl + Shift + Esc</code>) ➔ Tìm mục <strong>Node.js: Server-side JavaScript</strong> ➔ Bấm <strong>End task</strong> rồi chạy lại <code>npm run dev</code>.</p>
+              </div>
+            </details>
+
+            <details class="bg-white p-4 rounded-xl border border-slate-200 cursor-pointer">
+              <summary class="font-bold text-slate-900 flex items-center justify-between">
+                <span>2. Bấm kết nối Strava bị báo lỗi "redirect_uri mismatch"</span>
+                <span class="text-slate-400 text-xs">Xem cách sửa ▾</span>
+              </summary>
+              <div class="mt-3 text-slate-600 space-y-1 pt-2 border-t text-xs">
+                <p>Vào lại trang <a href="https://www.strava.com/settings/api" target="_blank" class="text-indigo-600 underline">Strava API Settings</a> ➔ Kiểm tra ô <strong>Authorization Callback Domain</strong> xem có bị thừa chữ <code>http://</code> hoặc <code>:3026</code> không. Chỉ để duy nhất một từ: <code class="text-rose-600 font-bold">localhost</code>.</p>
+              </div>
+            </details>
+
+            <details class="bg-white p-4 rounded-xl border border-slate-200 cursor-pointer">
+              <summary class="font-bold text-slate-900 flex items-center justify-between">
+                <span>3. Quên cách tắt máy chủ web sau khi làm việc xong</span>
+                <span class="text-slate-400 text-xs">Xem cách sửa ▾</span>
+              </summary>
+              <div class="mt-3 text-slate-600 space-y-1 pt-2 border-t text-xs">
+                <p>Tại cửa sổ Terminal đang chạy <code>npm run dev</code>, bạn chỉ cần nhấn tổ hợp phím <code>Ctrl + C</code> (rồi gõ <code>y</code> nếu được hỏi) là máy chủ sẽ dừng lại an toàn.</p>
+              </div>
+            </details>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 text-slate-400 py-10 border-t border-slate-800 text-center text-xs">
+    <div class="max-w-7xl mx-auto px-4 space-y-2">
+      <p class="text-slate-300 font-semibold text-sm">🏃‍♂️ Chúc Tùng tiếp quản và nâng cấp webapp Challenge CNHP Thu Đông 2026 thật rực rỡ và thành công!</p>
+      <p>Tài liệu được tạo tự động bởi Antigravity Pair Programmer • Sẵn sàng hỗ trợ 24/7</p>
+    </div>
+  </footer>
+
+  <!-- SCRIPT TIỆN ÍCH -->
+  <script>
+    // Copy lệnh
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Đã chép! ✓';
+        btn.classList.add('bg-emerald-600', 'text-white');
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.remove('bg-emerald-600', 'text-white');
+        }, 2000);
+      });
+    }
+
+    // Copy Prompt
+    function copyPrompt(elementId, btn) {
+      const text = document.getElementById(elementId).innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Đã copy prompt! ✓';
+        btn.classList.remove('bg-indigo-50', 'text-indigo-700');
+        btn.classList.add('bg-emerald-600', 'text-white');
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.add('bg-indigo-50', 'text-indigo-700');
+          btn.classList.remove('bg-emerald-600', 'text-white');
+        }, 2000);
+      });
+    }
+
+    // Tiến độ checklist
+    function updateProgress() {
+      const checkboxes = document.querySelectorAll('.task-checkbox');
+      const checked = document.querySelectorAll('.task-checkbox:checked');
+      const total = checkboxes.length;
+      const count = checked.length;
+      const percent = Math.round((count / total) * 100);
+
+      document.getElementById('completed-count').innerText = count;
+      document.getElementById('progress-bar').style.width = percent + '%';
+      document.getElementById('percent-badge').innerText = percent + '% Xong';
+
+      // Lưu vào localStorage
+      const state = Array.from(checkboxes).map(cb => cb.checked);
+      localStorage.setItem('cnhp_tung_progress', JSON.stringify(state));
+    }
+
+    // Khôi phục trạng thái từ localStorage
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('cnhp_tung_progress');
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          const checkboxes = document.querySelectorAll('.task-checkbox');
+          checkboxes.forEach((cb, idx) => {
+            if (state[idx]) cb.checked = true;
+          });
+          updateProgress();
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>
