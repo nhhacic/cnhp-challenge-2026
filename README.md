@@ -4,6 +4,11 @@ Hệ thống webapp theo dõi, xếp hạng, tính thưởng/phạt và phân t�
 
 ---
 
+## 📌 Tài Liệu Dành Riêng Cho Người Mới (Bàn Giao Cho Tùng)
+> 🌟 **Nếu Tùng chưa thạo kỹ thuật:** Hãy nhấp đúp mở file **[`huong_dan_ban_giao_tung.html`](huong_dan_ban_giao_tung.html)** trên bất kỳ trình duyệt nào (Chrome, Edge). Đây là cẩm nang trực quan "cầm tay chỉ việc" từ cài đặt Git, Node.js, Google Antigravity, kích hoạt gói Ultra, lấy API Strava, đến kho câu lệnh Prompt mẫu để nâng cấp app!
+
+---
+
 ## 📌 Tính Năng Nổi Bật
 
 - **Bảng Xếp Hạng Đội Nhóm & Cá Nhân**:
