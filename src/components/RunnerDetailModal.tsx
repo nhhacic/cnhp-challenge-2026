@@ -16,6 +16,7 @@ interface RunnerDetailModalProps {
   isAdmin: boolean;
   onUpdateActivity: (activity: Activity) => void;
   onDeleteActivity: (activityId: string) => void;
+  onDeleteUser?: (userId: string) => void;
 }
 
 export default function RunnerDetailModal({
@@ -29,6 +30,7 @@ export default function RunnerDetailModal({
   isAdmin,
   onUpdateActivity,
   onDeleteActivity,
+  onDeleteUser,
 }: RunnerDetailModalProps) {
   const [editingActId, setEditingActId] = useState<string | null>(null);
   const [lagKmInput, setLagKmInput] = useState<string>('');
@@ -115,12 +117,33 @@ export default function RunnerDetailModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {isAdmin && onDeleteUser && (
+              <button
+                onClick={() => {
+                  if (
+                    confirm(
+                      `Bạn có chắc chắn muốn xóa thành viên "${user.name}" khỏi giải đấu?\nTất cả bài chạy liên quan của vận động viên này cũng sẽ bị gỡ bỏ.`
+                    )
+                  ) {
+                    onDeleteUser(user.id);
+                  }
+                }}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 text-xs font-bold border border-rose-200 dark:border-rose-800 transition-all active:scale-95"
+                title="Xóa thành viên khỏi giải đấu"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Xóa VĐV</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}

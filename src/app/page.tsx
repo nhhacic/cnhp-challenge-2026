@@ -189,6 +189,26 @@ export default function HomePage() {
     }
   };
 
+  // Xóa thành viên từ modal hoặc admin
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_user',
+          userId,
+        }),
+      });
+      if (res.ok) {
+        setSelectedUserForModal(null);
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -345,6 +365,7 @@ export default function HomePage() {
           isAdmin={isAdmin}
           onUpdateActivity={handleUpdateActivity}
           onDeleteActivity={handleDeleteActivity}
+          onDeleteUser={handleDeleteUser}
         />
       )}
 

@@ -142,8 +142,10 @@ export async function saveDataAsync(data: ChallengeData): Promise<void> {
     try {
       const db = getFirebaseDb();
       if (db) {
+        // Làm sạch dữ liệu để tránh undefined gây lỗi trên Firestore
+        const cleanData = JSON.parse(JSON.stringify(data));
         const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
-        await setDoc(docRef, data);
+        await setDoc(docRef, cleanData);
       }
     } catch (e) {
       console.error('Lỗi lưu dữ liệu lên Cloud Firestore:', e);
@@ -192,6 +194,62 @@ export async function saveUserAsync(user: User): Promise<User> {
   }
   await saveDataAsync(data);
   return user;
+}
+
+export async function deleteUserAsync(userId: string): Promise<boolean> {
+  const data = await loadDataAsync();
+  const initLen = data.users.length;
+  data.users = data.users.filter((u) => u.id !== userId);
+  data.activities = data.activities.filter((a) => a.userId !== userId);
+  // Cập nhật nếu user là captain
+  data.teams.forEach((t) => {
+    if (t.captainId === userId) {
+      delete t.captainId;
+    }
+  });
+  if (data.users.length !== initLen) {
+    await saveDataAsync(data);
+    return true;
+  }
+  return false;
+}
+
+export async function saveTeamAsync(team: Team): Promise<Team> {
+  const data = await loadDataAsync();
+  const index = data.teams.findIndex((t) => t.id === team.id);
+  if (index >= 0) {
+    data.teams[index] = { ...data.teams[index], ...team };
+  } else {
+    data.teams.push(team);
+  }
+  await saveDataAsync(data);
+  return team;
+}
+
+export async function deleteTeamAsync(teamId: string): Promise<{ success: boolean; message: string }> {
+  const data = await loadDataAsync();
+  if (data.teams.length <= 1) {
+    return { success: false, message: 'Giải đấu phải duy trì ít nhất 1 đội đua, không thể xóa tất cả các đội.' };
+  }
+  const targetIndex = data.teams.findIndex((t) => t.id === teamId);
+  if (targetIndex === -1) {
+    return { success: false, message: 'Không tìm thấy đội cần xóa.' };
+  }
+
+  const fallbackTeam = data.teams.find((t) => t.id !== teamId);
+  if (fallbackTeam) {
+    // Chuyển các thành viên của đội này sang đội còn lại
+    data.users.forEach((u) => {
+      if (u.teamId === teamId) {
+        u.teamId = fallbackTeam.id;
+        u.isCaptain = false;
+      }
+    });
+  }
+
+  data.teams.splice(targetIndex, 1);
+  await saveDataAsync(data);
+  return { success: true, message: 'Đã xóa đội thành công!' };
 }
 
 export async function syncLocalToFirebase(): Promise<{ success: boolean; message: string }> {
