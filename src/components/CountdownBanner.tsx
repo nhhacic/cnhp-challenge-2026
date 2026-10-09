@@ -11,6 +11,7 @@ interface CountdownBannerProps {
   totalUsersCount: number;
   financialOverview: FinancialOverview;
   onViewRules?: () => void;
+  onInstallApp?: () => void;
 }
 
 export default function CountdownBanner({
@@ -19,6 +20,7 @@ export default function CountdownBanner({
   totalUsersCount,
   financialOverview,
   onViewRules,
+  onInstallApp,
 }: CountdownBannerProps) {
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-5 sm:p-7 shadow-xl mb-6 sm:mb-8 relative overflow-hidden border border-orange-500/20">
@@ -92,6 +94,14 @@ export default function CountdownBanner({
                   className="px-2.5 py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 flex items-center gap-1 transition-all active:scale-95"
                 >
                   📜 Xem Thể Lệ Đầy Đủ
+                </button>
+              )}
+              {onInstallApp && (
+                <button
+                  onClick={onInstallApp}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 transition-all active:scale-95 font-bold"
+                >
+                  📱 Cài App Điện Thoại
                 </button>
               )}
             </div>

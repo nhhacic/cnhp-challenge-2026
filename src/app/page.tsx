@@ -9,6 +9,7 @@ import FinanceAndDeficit from '@/components/FinanceAndDeficit';
 import AdminPanel from '@/components/AdminPanel';
 import RunnerDetailModal from '@/components/RunnerDetailModal';
 import ChallengeRules from '@/components/ChallengeRules';
+import InstallAppModal from '@/components/InstallAppModal';
 import {
   Activity,
   Team,
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedUser, setConnectedUser] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   // Khởi tạo chế độ tối và kiểm tra phiên đăng nhập Strava
   useEffect(() => {
@@ -271,6 +273,7 @@ export default function HomePage() {
           totalUsersCount={users.length}
           financialOverview={financialOverview}
           onViewRules={() => setActiveTab('RULES')}
+          onInstallApp={() => setShowInstallModal(true)}
         />
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
@@ -409,6 +412,12 @@ export default function HomePage() {
           onDeleteUser={handleDeleteUser}
         />
       )}
+
+      {/* Modal Hướng Dẫn Cài Đặt App */}
+      <InstallAppModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+      />
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">

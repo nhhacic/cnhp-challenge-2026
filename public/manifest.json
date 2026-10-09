@@ -4,10 +4,12 @@
   "description": "Giải chạy nội bộ CNHP Running Club mùa Thu Đông 2026",
   "start_url": "/",
   "id": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#ff5722",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
