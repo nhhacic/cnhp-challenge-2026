@@ -43,7 +43,7 @@ export default function HomePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedUser, setConnectedUser] = useState<any>(null);
 
-  // Khởi tạo chế độ tối từ hệ thống hoặc lưu trữ
+  // Khởi tạo chế độ tối và kiểm tra phiên đăng nhập Strava
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isDark =
@@ -51,8 +51,60 @@ export default function HomePage() {
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       setIsDarkMode(isDark);
       if (isDark) document.documentElement.classList.add('dark');
+
+      // 1. Phục hồi user đã đăng nhập
+      const savedUser = localStorage.getItem('cnhp_auth_user');
+      if (savedUser) {
+        try {
+          setConnectedUser(JSON.parse(savedUser));
+        } catch (e) {}
+      }
+
+      // 2. Kiểm tra callback sau khi đăng nhập Strava thành công
+      const params = new URLSearchParams(window.location.search);
+      const stravaStatus = params.get('strava_status');
+      const userId = params.get('user_id');
+      const athleteName = params.get('athlete_name');
+      const avatar = params.get('avatar');
+      const syncedCount = params.get('synced_count');
+      const stravaError = params.get('strava_error');
+
+      if (stravaError) {
+        alert('Lỗi kết nối Strava: ' + decodeURIComponent(stravaError));
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (stravaStatus === 'success' && userId) {
+        const userObj = {
+          id: userId,
+          name: athleteName ? decodeURIComponent(athleteName) : 'VĐV Strava',
+          avatar: avatar ? decodeURIComponent(avatar) : '',
+        };
+        setConnectedUser(userObj);
+        localStorage.setItem('cnhp_auth_user', JSON.stringify(userObj));
+
+        // Bắn pháo hoa chào mừng
+        import('canvas-confetti').then((confetti) => {
+          confetti.default({
+            particleCount: 80,
+            spread: 60,
+            origin: { y: 0.6 },
+          });
+        });
+
+        alert(
+          `🎉 Đăng nhập Strava thành công!\nChào mừng ${userObj.name} tham gia CNHP Challenge 2026.\nĐã tự động đọc và đồng bộ ${syncedCount || 0} bài chạy mới nhất vào bảng xếp hạng!`
+        );
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetchData();
+      }
     }
   }, []);
+
+  const handleLogout = () => {
+    setConnectedUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('cnhp_auth_user');
+    }
+  };
 
   const toggleDarkMode = () => {
     const next = !isDarkMode;
@@ -173,6 +225,7 @@ export default function HomePage() {
         onSyncStrava={handleSyncStrava}
         isSyncing={isSyncing}
         connectedUser={connectedUser}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

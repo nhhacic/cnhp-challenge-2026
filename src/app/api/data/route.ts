@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { loadData } from '@/lib/storage';
+import { loadDataAsync } from '@/lib/storage';
 import {
   calculateUserWeeklyStat,
   calculateTeamWeeklyStats,
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = loadData();
+    const data = await loadDataAsync();
     const { weeks, teams, users, activities } = data;
 
     // Xác định các tuần đã chốt kết quả (đã kết thúc hoặc được Admin khóa chốt)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadData, saveActivity } from '@/lib/storage';
+import { loadDataAsync, saveActivityAsync } from '@/lib/storage';
 import { Activity, ActivityType } from '@/types';
 
 export async function POST(req: NextRequest) {
@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { userId } = body;
 
-    const data = loadData();
+    const data = await loadDataAsync();
     const usersToSync = userId ? data.users.filter((u) => u.id === userId) : data.users;
 
     let syncedCount = 0;
@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     for (const user of usersToSync) {
       if (user.stravaAccessToken) {
         try {
-          // Gọi Strava API lấy các activity trong thời gian giải
-          const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30', {
+          // Gọi Strava API lấy các activity
+          const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
             headers: {
               Authorization: `Bearer ${user.stravaAccessToken}`,
             },
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
                 invalidReasons: [],
               };
 
-              saveActivity(act);
+              await saveActivityAsync(act);
               syncedCount++;
             }
           }

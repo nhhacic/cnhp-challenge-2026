@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { Activity, Team, User, Week } from '@/types';
 import { validateActivity } from './rules-engine';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getFirebaseDb, isFirebaseConfigured } from './firebase';
 
 export interface ChallengeData {
   challenge: {
@@ -19,6 +21,8 @@ export interface ChallengeData {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'challenge_data.json');
+const FIRESTORE_COLLECTION = 'cnhp_challenge';
+const FIRESTORE_DOC_ID = 'challenge_data_2026';
 
 export function getInitialDefaultData(): ChallengeData {
   const weeks: Week[] = [
@@ -105,6 +109,116 @@ export function saveData(data: ChallengeData): void {
   }
 }
 
+// =================== ASYNC / FIREBASE INTEGRATION ===================
+
+export async function loadDataAsync(): Promise<ChallengeData> {
+  if (isFirebaseConfigured()) {
+    try {
+      const db = getFirebaseDb();
+      if (db) {
+        const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data() as ChallengeData;
+          saveData(data); // đồng bộ vào cache local
+          return data;
+        } else {
+          // Chưa có document trên Firestore -> Đẩy dữ liệu hiện tại lên Firestore
+          const localData = loadData();
+          await setDoc(docRef, localData);
+          return localData;
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi đọc dữ liệu từ Cloud Firestore, dùng dữ liệu local fallback:', e);
+    }
+  }
+  return loadData();
+}
+
+export async function saveDataAsync(data: ChallengeData): Promise<void> {
+  saveData(data);
+  if (isFirebaseConfigured()) {
+    try {
+      const db = getFirebaseDb();
+      if (db) {
+        const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
+        await setDoc(docRef, data);
+      }
+    } catch (e) {
+      console.error('Lỗi lưu dữ liệu lên Cloud Firestore:', e);
+    }
+  }
+}
+
+export async function saveActivityAsync(activity: Activity): Promise<Activity> {
+  const data = await loadDataAsync();
+  const validation = validateActivity(activity);
+  const updatedActivity: Activity = {
+    ...activity,
+    effectiveKm: Math.max(0, activity.distanceKm - (activity.lagKmDeducted || 0)),
+    isValid: validation.isValid,
+    invalidReasons: validation.invalidReasons,
+  };
+
+  const index = data.activities.findIndex((a) => a.id === updatedActivity.id);
+  if (index >= 0) {
+    data.activities[index] = updatedActivity;
+  } else {
+    data.activities.push(updatedActivity);
+  }
+  await saveDataAsync(data);
+  return updatedActivity;
+}
+
+export async function deleteActivityAsync(id: string): Promise<boolean> {
+  const data = await loadDataAsync();
+  const initialLen = data.activities.length;
+  data.activities = data.activities.filter((a) => a.id !== id);
+  if (data.activities.length !== initialLen) {
+    await saveDataAsync(data);
+    return true;
+  }
+  return false;
+}
+
+export async function saveUserAsync(user: User): Promise<User> {
+  const data = await loadDataAsync();
+  const index = data.users.findIndex((u) => u.id === user.id);
+  if (index >= 0) {
+    data.users[index] = { ...data.users[index], ...user };
+  } else {
+    data.users.push(user);
+  }
+  await saveDataAsync(data);
+  return user;
+}
+
+export async function syncLocalToFirebase(): Promise<{ success: boolean; message: string }> {
+  if (!isFirebaseConfigured()) {
+    return {
+      success: false,
+      message: 'Firebase chưa được cấu hình. Vui lòng thêm các biến môi trường Firebase vào file .env.local',
+    };
+  }
+  try {
+    const db = getFirebaseDb();
+    if (!db) {
+      return { success: false, message: 'Không thể kết nối đến Firebase Firestore' };
+    }
+    const localData = loadData();
+    const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
+    await setDoc(docRef, localData);
+    return {
+      success: true,
+      message: `Đã đồng bộ thành công ${localData.users.length} thành viên, ${localData.teams.length} đội và ${localData.activities.length} bài chạy lên Firebase Firestore!`,
+    };
+  } catch (err: any) {
+    return { success: false, message: 'Lỗi đồng bộ Firebase: ' + (err.message || String(err)) };
+  }
+}
+
+// Đồng bộ các hàm cũ (đồng bộ)
 export function getWeeks(): Week[] {
   return loadData().weeks;
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveActivity, deleteActivity } from '@/lib/storage';
+import { saveActivityAsync, deleteActivityAsync } from '@/lib/storage';
 import { Activity } from '@/types';
 
 export async function POST(req: NextRequest) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       activity.averagePaceSeconds = Math.round(activity.movingTimeSec / activity.distanceKm);
     }
 
-    const saved = saveActivity(activity);
+    const saved = await saveActivityAsync(activity);
     return NextResponse.json({ success: true, activity: saved });
   } catch (error) {
     console.error('Lỗi khi lưu bài chạy:', error);
@@ -47,7 +47,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Thiếu id bài chạy' }, { status: 400 });
     }
-    const success = deleteActivity(id);
+    const success = await deleteActivityAsync(id);
     return NextResponse.json({ success });
   } catch (error) {
     console.error('Lỗi khi xóa bài chạy:', error);

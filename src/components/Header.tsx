@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Week } from '@/types';
-import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass } from 'lucide-react';
+import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass, LogOut, CheckCircle2 } from 'lucide-react';
 
 interface HeaderProps {
   weeks: Week[];
@@ -15,6 +15,7 @@ interface HeaderProps {
   onSyncStrava: () => void;
   isSyncing: boolean;
   connectedUser: any;
+  onLogout?: () => void;
 }
 
 export default function Header({
@@ -28,6 +29,7 @@ export default function Header({
   onSyncStrava,
   isSyncing,
   connectedUser,
+  onLogout,
 }: HeaderProps) {
   const [showStravaModal, setShowStravaModal] = useState(false);
 
@@ -71,19 +73,51 @@ export default function Header({
 
           {/* Quick Actions */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Nút Kết nối Strava */}
-            <button
-              onClick={handleConnectStrava}
-              className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md shadow-orange-600/20 transition-all"
-            >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
-              </svg>
-              <span className="hidden sm:inline">
-                {connectedUser ? connectedUser.name : 'Kết nối Strava'}
-              </span>
-              <span className="sm:hidden">Strava</span>
-            </button>
+            {/* Đăng nhập hoặc hiển thị user Strava */}
+            {connectedUser ? (
+              <div className="flex items-center space-x-1.5 sm:space-x-2 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 p-1 sm:px-2.5 sm:py-1 rounded-2xl">
+                {connectedUser.avatar ? (
+                  <img
+                    src={connectedUser.avatar}
+                    alt={connectedUser.name}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-orange-300 object-cover"
+                  />
+                ) : (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">
+                    {connectedUser.name?.[0] || 'V'}
+                  </div>
+                )}
+                <div className="hidden sm:block text-left">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1 leading-tight">
+                    <span>{connectedUser.name}</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">
+                    Strava Đã Kết Nối
+                  </span>
+                </div>
+                {onLogout && (
+                  <button
+                    onClick={onLogout}
+                    title="Đăng xuất khỏi tài khoản này"
+                    className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition"
+                  >
+                    <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectStrava}
+                className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md shadow-orange-600/20 transition-all"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
+                </svg>
+                <span className="hidden sm:inline">Đăng nhập Strava</span>
+                <span className="sm:hidden">Strava</span>
+              </button>
+            )}
 
             {/* Nút Đồng bộ bài chạy */}
             <button

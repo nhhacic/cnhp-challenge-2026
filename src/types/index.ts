@@ -9,6 +9,8 @@ export interface User {
   avatar: string;
   stravaId?: string;
   stravaAccessToken?: string;
+  stravaRefreshToken?: string;
+  stravaTokenExpiresAt?: number;
   teamId: string;
   isCaptain: boolean;
   isPaidFee: boolean;

@@ -1,8 +1,6 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Team, Activity, ActivityType } from '@/types';
-import { Settings, Shield, Plus, RotateCcw, UserPlus, Save, Check } from 'lucide-react';
+import { Settings, Shield, Plus, RotateCcw, UserPlus, Save, Check, Cloud, Database, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface AdminPanelProps {
   teams: Team[];
@@ -11,6 +9,41 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelProps) {
+  // Firebase status
+  const [firebaseStatus, setFirebaseStatus] = useState<{ configured: boolean; projectId: string | null } | null>(null);
+  const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check_firebase' }),
+    })
+      .then((res) => res.json())
+      .then((data) => setFirebaseStatus(data))
+      .catch((e) => console.error(e));
+  }, []);
+
+  const handleSyncFirebase = async () => {
+    setIsSyncingFirebase(true);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_firebase' }),
+      });
+      const data = await res.json();
+      alert(data.message || 'Kết quả đồng bộ Firebase: ' + (data.success ? 'Thành công' : 'Thất bại'));
+      if (data.success) {
+        onRefreshData();
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err.message || String(err)));
+    } finally {
+      setIsSyncingFirebase(false);
+    }
+  };
+
   // Form thêm bài chạy thủ công
   const [selectedUserId, setSelectedUserId] = useState<string>(users[0]?.id || '');
   const [actTitle, setActTitle] = useState('Chạy sáng bổ sung');
@@ -152,6 +185,47 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Reset Dữ Liệu Mẫu</span>
         </button>
+      </div>
+
+      {/* Card Quản lý Cơ sở dữ liệu Firebase Cloud */}
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 p-5 rounded-3xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30">
+              <Cloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                  Cơ Sở Dữ Liệu Đám Mây Firebase (Firestore)
+                </h3>
+                {firebaseStatus?.configured ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Đã Kết Nối ({firebaseStatus.projectId})
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Chế Độ Local (Đang chờ nạp keys Firebase)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {firebaseStatus?.configured
+                  ? 'Mọi người trên mạng đều truy cập chung một cơ sở dữ liệu Firestore tập trung theo thời gian thực.'
+                  : 'Dữ liệu hiện tại đang lưu cục bộ. Để tất cả mọi người cùng truy cập chung cơ sở dữ liệu trên mây, hãy thêm Firebase Config vào file .env.local.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSyncFirebase}
+            disabled={isSyncingFirebase}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition-all whitespace-nowrap"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFirebase ? 'animate-spin' : ''}`} />
+            <span>{isSyncingFirebase ? 'Đang đồng bộ...' : 'Đẩy Dữ Liệu Lên Firestore'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
