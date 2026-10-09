@@ -3,7 +3,22 @@
 import React, { useState } from 'react';
 import { User, Activity, Team, Week, UserWeeklyStat } from '@/types';
 import { formatKm, formatPace, formatCurrency } from '@/lib/rules-engine';
-import { X, Calendar, MapPin, Zap, AlertTriangle, CheckCircle, Trash2, Edit3, Mountain, Flag } from 'lucide-react';
+import { 
+  X, 
+  Calendar, 
+  MapPin, 
+  Zap, 
+  AlertTriangle, 
+  CheckCircle, 
+  Trash2, 
+  Edit3, 
+  Mountain, 
+  Flag,
+  QrCode,
+  Copy,
+  Check,
+  ExternalLink
+} from 'lucide-react';
 
 interface RunnerDetailModalProps {
   user: User | null;
@@ -34,6 +49,8 @@ export default function RunnerDetailModal({
 }: RunnerDetailModalProps) {
   const [editingActId, setEditingActId] = useState<string | null>(null);
   const [lagKmInput, setLagKmInput] = useState<string>('');
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [copiedField, setCopiedField] = useState<'stk' | 'syntax' | null>(null);
 
   if (!user) return null;
 
@@ -105,14 +122,15 @@ export default function RunnerDetailModal({
                   {team?.name}
                 </span>
                 •
-                <span>
-                  Phí giải:{' '}
-                  {user.isPaidFee ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">Đã nộp 200k</span>
-                  ) : (
-                    <span className="text-rose-500 font-bold">Chưa nộp</span>
-                  )}
-                </span>
+                {currentWeekStats && currentWeekStats.totalPenaltyAmount > 0 ? (
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">
+                    Phạt tuần: {formatCurrency(currentWeekStats.totalPenaltyAmount)}
+                  </span>
+                ) : (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Đạt chỉ tiêu
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -150,60 +168,90 @@ export default function RunnerDetailModal({
         <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
           {/* Tuần hiện tại & Chỉ tiêu */}
           {selectedWeek && currentWeekStats && (
-            <div className="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-orange-800 dark:text-orange-400 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  Tiến Độ {selectedWeek.name}
-                </span>
-                {currentWeekStats.isCompleted ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Đã Hoàn Thành
+            <>
+              <div className="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-orange-800 dark:text-orange-400 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4" />
+                    Tiến Độ {selectedWeek.name}
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500 text-white">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Chưa Đạt Chỉ Tiêu
-                  </span>
-                )}
+                  {currentWeekStats.isCompleted ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Đã Hoàn Thành
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500 text-white">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Chưa Đạt Chỉ Tiêu
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
+                    <div className="text-[11px] text-slate-500">Đã Chạy</div>
+                    <div className="text-base font-black text-slate-900 dark:text-white">
+                      {formatKm(currentWeekStats.actualKm)}
+                    </div>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
+                    <div className="text-[11px] text-slate-500">Chỉ Tiêu Tuần</div>
+                    <div className="text-base font-black text-orange-600 dark:text-orange-400">
+                      {formatKm(currentWeekStats.totalTargetKm)}
+                      {currentWeekStats.previousDeficitKm > 0 && (
+                        <span className="text-[10px] text-amber-600 block">
+                          (Gốc 15km + Nợ {currentWeekStats.previousDeficitKm}km)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
+                    <div className="text-[11px] text-slate-500">Số Ngày Chạy</div>
+                    <div className="text-base font-black text-slate-900 dark:text-white">
+                      {currentWeekStats.totalDaysRun}/3 ngày
+                    </div>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
+                    <div className="text-[11px] text-slate-500">Tiền Phạt Tuần</div>
+                    <div className="text-base font-black text-rose-500">
+                      {formatCurrency(currentWeekStats.totalPenaltyAmount)}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
-                  <div className="text-[11px] text-slate-500">Đã Chạy</div>
-                  <div className="text-base font-black text-slate-900 dark:text-white">
-                    {formatKm(currentWeekStats.actualKm)}
+              {/* Banner Nộp Phạt nếu có phát sinh tiền phạt trong tuần */}
+              {currentWeekStats.totalPenaltyAmount > 0 && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/40 dark:to-orange-950/40 border-2 border-rose-200 dark:border-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md shadow-rose-500/20">
+                      💳
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-rose-950 dark:text-rose-200">
+                        Khoản Phạt Cần Nộp {selectedWeek.name}: <span className="text-sm font-black text-rose-600 dark:text-rose-400">{formatCurrency(currentWeekStats.totalPenaltyAmount)}</span>
+                      </div>
+                      <div className="text-[11px] text-rose-700/80 dark:text-rose-400/80">
+                        {currentWeekStats.missingDays > 0 ? `Thiếu ${currentWeekStats.missingDays} buổi (${formatCurrency(currentWeekStats.penaltyDaysAmount)}) ` : ''}
+                        {currentWeekStats.deficitKm > 0 ? `• Thiếu ${currentWeekStats.deficitKm}km (${formatCurrency(currentWeekStats.penaltyKmAmount)})` : ''}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
-                  <div className="text-[11px] text-slate-500">Chỉ Tiêu Tuần</div>
-                  <div className="text-base font-black text-orange-600 dark:text-orange-400">
-                    {formatKm(currentWeekStats.totalTargetKm)}
-                    {currentWeekStats.previousDeficitKm > 0 && (
-                      <span className="text-[10px] text-amber-600 block">
-                        (Gốc 15km + Nợ {currentWeekStats.previousDeficitKm}km)
-                      </span>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>Quét QR Nộp Phạt</span>
+                  </button>
                 </div>
-
-                <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
-                  <div className="text-[11px] text-slate-500">Số Ngày Chạy</div>
-                  <div className="text-base font-black text-slate-900 dark:text-white">
-                    {currentWeekStats.totalDaysRun}/3 ngày
-                  </div>
-                </div>
-
-                <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
-                  <div className="text-[11px] text-slate-500">Tiền Phạt Tuần</div>
-                  <div className="text-base font-black text-rose-500">
-                    {formatCurrency(currentWeekStats.totalPenaltyAmount)}
-                  </div>
-                </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
 
           {/* Danh sách các bài chạy */}
@@ -354,6 +402,103 @@ export default function RunnerDetailModal({
           </div>
         </div>
       </div>
+
+      {/* Modal QR Nộp Phạt Thủ Quỹ */}
+      {showPaymentModal && currentWeekStats && (
+        <div 
+          onClick={() => setShowPaymentModal(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-5 relative border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4"
+          >
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute top-3.5 right-3.5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center pr-6">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 text-xs font-bold mb-1">
+                <QrCode className="w-3.5 h-3.5" />
+                NỘP TIỀN PHẠT TUẦN {selectedWeek?.weekNumber}
+              </div>
+              <h4 className="text-base font-black text-slate-900 dark:text-white uppercase">
+                {user.name}
+              </h4>
+              <p className="text-sm font-black text-rose-600 dark:text-rose-400">
+                {formatCurrency(currentWeekStats.totalPenaltyAmount)}
+              </p>
+            </div>
+
+            {/* Ảnh QR */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-inner flex justify-center">
+              <img
+                src="/thu_quy_qr.jpg"
+                alt="Mã QR nộp phạt Thủ Quỹ Trịnh Long"
+                className="w-full max-h-[380px] object-contain rounded-xl"
+              />
+            </div>
+
+            {/* Chi tiết tài khoản */}
+            <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Chủ tài khoản:</span>
+                <span className="font-black text-slate-900 dark:text-white uppercase">TRINH LONG</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Số tài khoản:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-black text-orange-600 dark:text-orange-400 text-sm">
+                    1903 0671 9889 89
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('19030671988989');
+                      setCopiedField('stk');
+                      setTimeout(() => setCopiedField(null), 2000);
+                    }}
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
+                    title="Sao chép STK"
+                  >
+                    {copiedField === 'stk' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Ngân hàng:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">Techcombank</span>
+              </div>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-slate-500">Cú pháp CK:</span>
+                  <button
+                    onClick={() => {
+                      const syntax = `CNHP ${user.name.replace(/\s+/g, ' ')} Tuan ${selectedWeek?.weekNumber || 1}`;
+                      navigator.clipboard.writeText(syntax);
+                      setCopiedField('syntax');
+                      setTimeout(() => setCopiedField(null), 2000);
+                    }}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    {copiedField === 'syntax' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedField === 'syntax' ? 'Đã chép' : 'Sao chép'}</span>
+                  </button>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 select-all">
+                  CNHP {user.name} Tuan {selectedWeek?.weekNumber || 1}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-center text-slate-400">
+              * Vui lòng nộp phạt trước 12h Thứ 3 hàng tuần về cho Thủ quỹ!
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

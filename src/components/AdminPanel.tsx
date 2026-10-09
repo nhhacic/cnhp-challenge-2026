@@ -880,8 +880,8 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             >
               <option value="ALL">Tất cả trạng thái nộp tiền</option>
-              <option value="PAID">Đã nộp phí 200k ({users.filter((u) => u.isPaidFee).length})</option>
-              <option value="UNPAID">Chưa nộp phí ({users.filter((u) => !u.isPaidFee).length})</option>
+              <option value="PAID">Đã nộp ({users.filter((u) => u.isPaidFee).length})</option>
+              <option value="UNPAID">Chưa nộp ({users.filter((u) => !u.isPaidFee).length})</option>
             </select>
           </div>
         </div>

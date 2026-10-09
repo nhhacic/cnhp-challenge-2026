@@ -200,12 +200,7 @@ export default function IndividualLeaderboard({
                             )}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {user.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'} • Phí:{' '}
-                            {user.isPaidFee ? (
-                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Đã đóng</span>
-                            ) : (
-                              <span className="text-rose-500 font-semibold">Chưa đóng</span>
-                            )}
+                            {user.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'}
                           </div>
                         </div>
                       </div>
