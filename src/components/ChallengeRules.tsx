@@ -81,7 +81,7 @@ export default function ChallengeRules() {
 ⚠️ Mức phạt:
   • Thiếu 1km: 20.000đ (0.01km tính 1km, chạy bù tuần sau)
   • Tuần cuối thiếu 1km: 40.000đ (phạt gấp đôi)
-  • Thiếu 1 buổi: 20.000đ
+  • Thiếu 1 buổi: 50.000đ
 💳 Kênh nộp phạt: Thủ quỹ TRINH LONG - Techcombank: 19030671988989 (trước 12h Thứ 3)
 📌 Rút giải: Lệ phí 500.000đ (ngoại trừ bất khả kháng)`;
 
@@ -136,7 +136,7 @@ export default function ChallengeRules() {
 
           <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
             <span className="text-[11px] text-slate-400 uppercase font-bold block mb-0.5">Mức Phạt Thể Lệ</span>
-            <div className="text-lg font-black text-rose-400">20.000đ / km & buổi</div>
+            <div className="text-lg font-black text-rose-400">20k/km • 50k/buổi</div>
             <span className="text-[10px] text-slate-300">Tuần cuối phạt 40k/km</span>
           </div>
 
@@ -482,7 +482,7 @@ export default function ChallengeRules() {
                   VI. Quy Chế Phạt, Làm Tròn & Cơ Chế Chạy Bù (Deficit Rollover)
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Phạt 20k/km, 20k/buổi, làm tròn 0.01km và quy định tuần cuối phạt gấp đôi 40k/km
+                  Phạt 20k/km, 50k/buổi, làm tròn 0.01km và quy định tuần cuối phạt gấp đôi 40k/km
                 </p>
               </div>
             </div>
@@ -510,7 +510,7 @@ export default function ChallengeRules() {
                       <strong>Tuần cuối (Tuần 8):</strong> Do không phải chạy bù nữa nên số tiền phạt sẽ <strong>tính gấp đôi: 40.000 vnđ / km thiếu</strong>.
                     </li>
                     <li>
-                      <strong>Phạt thiếu buổi:</strong> Thành viên nào không đủ 3 buổi chạy trong tuần, mỗi buổi thiếu tính phạt <strong className="text-rose-600 dark:text-rose-400">20.000 vnđ</strong>.
+                      <strong>Phạt thiếu buổi:</strong> Thành viên nào không đủ 3 buổi chạy trong tuần, mỗi buổi thiếu tính phạt <strong className="text-rose-600 dark:text-rose-400">50.000 vnđ</strong>.
                     </li>
                   </ul>
                 </div>

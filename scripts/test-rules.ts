@@ -137,7 +137,7 @@ const userActivitiesMissingDay: Activity[] = [
 ];
 const statMissingDay = calculateUserWeeklyStat('u-miss-day', testWeek, userActivitiesMissingDay, 0);
 assert(statMissingDay.missingDays === 1, 'Xác định thiếu đúng 1 buổi chạy');
-assert(statMissingDay.penaltyDaysAmount === 20000, 'Phạt 20.000đ do thiếu 1 buổi chạy');
+assert(statMissingDay.penaltyDaysAmount === 50000, 'Phạt 50.000đ do thiếu 1 buổi chạy');
 assert(statMissingDay.deficitKm === 0, 'Không bị phạt thiếu km vì đã chạy 16km >= 15km');
 
 // 2.4 Thiếu km & Quy tắc làm tròn 0.01km tính 1km: chạy 3 buổi tổng 14.95km (thiếu 0.05km)

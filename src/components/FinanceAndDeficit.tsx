@@ -135,7 +135,7 @@ export default function FinanceAndDeficit({
               Báo Cáo Tài Chính & Quỹ Giải Thưởng CNHP
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Minh bạch thu phí tham dự (200k/người), tiền phạt thể lệ (20.000đ/km & 20.000đ/buổi), tiền thưởng tuần và quỹ giải
+              Minh bạch thu phí tham dự (200k/người), tiền phạt thể lệ (20.000đ/km & 50.000đ/buổi), tiền thưởng tuần và quỹ giải
             </p>
           </div>
 
@@ -170,7 +170,7 @@ export default function FinanceAndDeficit({
             <span className="text-2xl font-black text-rose-500">
               +{formatCurrency(financialOverview.totalPenalties)}
             </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Thiếu km: 20k/km (tuần cuối 40k) • Buổi: 20k</span>
+            <span className="text-[11px] text-slate-400 block mt-1">Thiếu km: 20k/km (tuần cuối 40k) • Buổi: 50k</span>
           </div>
 
           {/* Card 3: Thưởng tuần */}
@@ -209,7 +209,7 @@ export default function FinanceAndDeficit({
                   Danh Sách Nộp Phạt Tuần {currentWeekNumber}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {selectedWeek ? `${selectedWeek.startDate} đến ${selectedWeek.endDate}` : ''} • Thiếu 1km: 20.000đ (tuần cuối 40.000đ) • Thiếu 1 buổi: 20.000đ
+                  {selectedWeek ? `${selectedWeek.startDate} đến ${selectedWeek.endDate}` : ''} • Thiếu 1km: 20.000đ (tuần cuối 40.000đ) • Thiếu 1 buổi: 50.000đ
                 </p>
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400">
