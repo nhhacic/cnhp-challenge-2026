@@ -8,13 +8,36 @@ import {
   saveUserAsync,
   deleteUserAsync,
   getInitialDefaultData,
+  syncLocalToUpstash,
 } from '@/lib/storage';
+import { isUpstashConfigured } from '@/lib/upstash';
 import { User, Team } from '@/types';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  return NextResponse.json({
+    configured: isUpstashConfigured(),
+    provider: 'Upstash Redis (Vercel KV)',
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action } = body;
+
+    if (action === 'check_cloud' || action === 'check_upstash') {
+      return NextResponse.json({
+        configured: isUpstashConfigured(),
+        provider: 'Upstash Redis (Vercel KV)',
+      });
+    }
+
+    if (action === 'sync_cloud' || action === 'sync_upstash') {
+      const res = await syncLocalToUpstash();
+      return NextResponse.json(res);
+    }
 
     if (action === 'check_firebase') {
       return NextResponse.json({

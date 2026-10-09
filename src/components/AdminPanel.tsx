@@ -20,6 +20,9 @@ import {
   Check,
   X,
   Users,
+  Database,
+  UploadCloud,
+  CheckCircle2,
 } from 'lucide-react';
 import EditTeamModal from '@/components/EditTeamModal';
 
@@ -77,6 +80,58 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
   const [actType, setActType] = useState<ActivityType>('Run');
   const [actDate, setActDate] = useState('2026-10-15T06:30');
   const [isSubmittingAct, setIsSubmittingAct] = useState(false);
+
+  // Trạng thái Đám Mây Upstash Redis
+  const [cloudConfigured, setCloudConfigured] = useState<boolean | null>(null);
+  const [isCheckingCloud, setIsCheckingCloud] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [cloudSyncMessage, setCloudSyncMessage] = useState<string | null>(null);
+  const [showCloudGuide, setShowCloudGuide] = useState(false);
+
+  useEffect(() => {
+    checkCloudStatus();
+  }, []);
+
+  const checkCloudStatus = async () => {
+    try {
+      setIsCheckingCloud(true);
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check_cloud' }),
+      });
+      const data = await res.json();
+      setCloudConfigured(Boolean(data.configured));
+    } catch {
+      setCloudConfigured(false);
+    } finally {
+      setIsCheckingCloud(false);
+    }
+  };
+
+  const handleSyncToCloud = async () => {
+    try {
+      setIsSyncingCloud(true);
+      setCloudSyncMessage(null);
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_cloud' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCloudSyncMessage(data.message || 'Đồng bộ thành công!');
+        checkCloudStatus();
+        onRefreshData();
+      } else {
+        alert(data.message || 'Lỗi khi đồng bộ lên đám mây');
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err.message || String(err)));
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
 
   // =================== QUẢN LÝ THÀNH VIÊN ===================
 
@@ -430,6 +485,126 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Reset Dữ Liệu Ban Đầu</span>
         </button>
+      </div>
+
+      {/* ================= KHU VỰC: TRẠNG THÁI CƠ SỞ DỮ LIỆU ĐÁM MÂY UPSTASH ================= */}
+      <div
+        className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+          cloudConfigured
+            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500/30'
+            : 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-500/30'
+        }`}
+      >
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center space-x-3.5">
+            <div
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md ${
+                cloudConfigured
+                  ? 'bg-emerald-600 text-white shadow-emerald-600/30'
+                  : 'bg-amber-500 text-white shadow-amber-500/30'
+              }`}
+            >
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  Cơ Sở Dữ Liệu Đám Mây:
+                </span>
+                {cloudConfigured === null ? (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    Đang kiểm tra kết nối...
+                  </span>
+                ) : cloudConfigured ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                    🟢 Đã Kết Nối Upstash Redis (Tự động đồng bộ online)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                    🟡 Chế Độ Cục Bộ (Local File / In-Memory)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {cloudConfigured
+                  ? 'Mọi bài chạy, danh sách VĐV, tên đội đua và nộp phạt đều được lưu trữ trực tuyến thời gian thực trên Upstash Redis.'
+                  : 'Dữ liệu đang được lưu tạm trên máy chủ. Để đảm bảo dữ liệu không bị reset khi server khởi động lại, bạn có thể kết nối Upstash Redis miễn phí.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+            {!cloudConfigured && (
+              <button
+                type="button"
+                onClick={() => setShowCloudGuide(!showCloudGuide)}
+                className="px-3 py-1.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-white/80 dark:bg-slate-800 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-100/50 transition-all"
+              >
+                {showCloudGuide ? 'Đóng hướng dẫn' : '📖 Hướng dẫn kết nối (1 phút)'}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSyncToCloud}
+              disabled={isSyncingCloud}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 ${
+                cloudConfigured
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                  : 'bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600'
+              }`}
+            >
+              <UploadCloud className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-bounce' : ''}`} />
+              <span>{isSyncingCloud ? 'Đang đồng bộ...' : 'Đẩy Dữ Liệu Lên Đám Mây'}</span>
+            </button>
+          </div>
+        </div>
+
+        {cloudSyncMessage && (
+          <div className="mt-3 p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{cloudSyncMessage}</span>
+          </div>
+        )}
+
+        {showCloudGuide && (
+          <div className="mt-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-2.5">
+            <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              🚀 3 Bước Kết Nối Upstash Redis (Hoàn toàn Miễn phí & Bền vững):
+            </div>
+            <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
+              <li>
+                Truy cập{' '}
+                <a
+                  href="https://console.upstash.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-orange-600 dark:text-orange-400 underline font-semibold"
+                >
+                  console.upstash.com
+                </a>{' '}
+                và đăng nhập nhanh bằng Google/GitHub.
+              </li>
+              <li>
+                Bấm <b>Create Database</b> &rarr; Chọn <b>Redis</b> &rarr; Vùng chọn <b>ap-southeast-1 (Singapore)</b> hoặc gần nhất &rarr; Free plan.
+              </li>
+              <li>
+                Cuộn xuống phần <b>REST API</b>, sao chép 2 giá trị và dán vào <b>Settings &rarr; Environment Variables</b> trên Vercel:
+                <div className="mt-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-mono text-[11px] text-slate-800 dark:text-slate-200 space-y-1">
+                  <div>
+                    <b>UPSTASH_REDIS_REST_URL</b>=<i>https://xxx.upstash.io</i>
+                  </div>
+                  <div>
+                    <b>UPSTASH_REDIS_REST_TOKEN</b>=<i>AXxx...</i>
+                  </div>
+                </div>
+              </li>
+            </ol>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+              Sau khi lưu trên Vercel và Redeploy, hệ thống sẽ tự động chuyển sang trạng thái 🟢 Đã Kết Nối mà không mất bất kỳ bài chạy hay thành viên nào!
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ================= KHU VỰC 1: QUẢN LÝ CÁC ĐỘI ĐUA (TEAMS) ================= */}

@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { Activity, Team, User, Week } from '@/types';
 import { validateActivity } from './rules-engine';
+import { getRedisClient, isUpstashConfigured } from './upstash';
+
 export interface ChallengeData {
   challenge: {
     name: string;
@@ -23,6 +25,7 @@ declare global {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'challenge_data.json');
 const TMP_FILE = path.join('/tmp', 'challenge_data.json');
+const REDIS_KEY = 'cnhp_challenge_data_2026';
 
 export function getInitialDefaultData(): ChallengeData {
   const weeks: Week[] = [
@@ -124,14 +127,44 @@ export function saveData(data: ChallengeData): void {
   }
 }
 
-// =================== ASYNC STORAGE (LOCAL & MEMORY - NO FIREBASE) ===================
+// =================== ASYNC STORAGE (UPSTASH CLOUD REDIS WITH LOCAL FALLBACK) ===================
 
 export async function loadDataAsync(): Promise<ChallengeData> {
+  if (isUpstashConfigured()) {
+    try {
+      const redis = getRedisClient();
+      if (redis) {
+        const cloudData = await redis.get<ChallengeData>(REDIS_KEY);
+        if (cloudData && cloudData.teams && cloudData.users) {
+          globalThis.__challengeData = cloudData;
+          saveData(cloudData); // đồng bộ vào cache local file/tmp
+          return cloudData;
+        } else {
+          // Chưa có data trên Cloud Redis -> Seed dữ liệu hiện tại lên Cloud
+          const localData = loadData();
+          await redis.set(REDIS_KEY, localData);
+          return localData;
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi đọc Upstash Cloud Redis, dùng dữ liệu fallback:', e);
+    }
+  }
   return loadData();
 }
 
 export async function saveDataAsync(data: ChallengeData): Promise<void> {
   saveData(data);
+  if (isUpstashConfigured()) {
+    try {
+      const redis = getRedisClient();
+      if (redis) {
+        await redis.set(REDIS_KEY, data);
+      }
+    } catch (e) {
+      console.error('Lỗi lưu Upstash Cloud Redis:', e);
+    }
+  }
 }
 
 export async function saveActivityAsync(activity: Activity): Promise<Activity> {
@@ -235,6 +268,31 @@ export async function deleteTeamAsync(teamId: string): Promise<{ success: boolea
 
 export async function syncLocalToFirebase(): Promise<{ success: boolean; message: string }> {
   return { success: true, message: 'Đã tắt tính năng đồng bộ Firebase.' };
+}
+
+export async function syncLocalToUpstash(): Promise<{ success: boolean; message: string }> {
+  if (!isUpstashConfigured()) {
+    return {
+      success: false,
+      message: 'Chưa cấu hình biến môi trường Upstash Redis (UPSTASH_REDIS_REST_URL và UPSTASH_REDIS_REST_TOKEN trên Vercel hoặc file .env).',
+    };
+  }
+  try {
+    const redis = getRedisClient();
+    if (!redis) throw new Error('Không khởi tạo được Upstash Redis client');
+    const localData = loadData();
+    await redis.set(REDIS_KEY, localData);
+    globalThis.__challengeData = localData;
+    return {
+      success: true,
+      message: `Đã đồng bộ thành công dữ liệu lên đám mây Upstash Redis (${localData.users.length} thành viên, ${localData.teams.length} đội, ${localData.activities.length} hoạt động)!`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Lỗi đồng bộ Upstash Redis: ${err?.message || String(err)}`,
+    };
+  }
 }
 
 // Đồng bộ các hàm cũ (đồng bộ)
