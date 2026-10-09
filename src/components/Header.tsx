@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { Week } from '@/types';
-import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass, LogOut, CheckCircle2 } from 'lucide-react';
+import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass, LogOut, CheckCircle2, Smartphone } from 'lucide-react';
+import InstallAppModal from '@/components/InstallAppModal';
 
 interface HeaderProps {
   weeks: Week[];
@@ -32,6 +33,7 @@ export default function Header({
   onLogout,
 }: HeaderProps) {
   const [showStravaModal, setShowStravaModal] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   const handleConnectStrava = () => {
     // Nếu có Strava Client ID thì chuyển hướng OAuth, nếu không thì thông báo kết nối demo
@@ -146,6 +148,17 @@ export default function Header({
               </span>
             </button>
 
+            {/* Nút Cài đặt App Mobile */}
+            <button
+              onClick={() => setShowInstallModal(true)}
+              title="Cài đặt App CNHP lên điện thoại iPhone & Android"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-bold text-orange-600 dark:text-orange-400 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 border border-orange-200 dark:border-orange-800 rounded-xl transition-all shadow-sm active:scale-95"
+            >
+              <Smartphone className="w-4 h-4 text-orange-500" />
+              <span className="hidden sm:inline">Cài App</span>
+              <span className="sm:hidden text-[11px]">App</span>
+            </button>
+
             {/* Dark mode toggle */}
             <button
               onClick={onToggleDarkMode}
@@ -229,6 +242,12 @@ export default function Header({
           </div>
         </div>
       )}
+
+      {/* Modal Hướng Dẫn Cài Đặt App Cho iPhone & Android */}
+      <InstallAppModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+      />
     </header>
   );
 }
