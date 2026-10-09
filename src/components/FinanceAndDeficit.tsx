@@ -99,10 +99,10 @@ export default function FinanceAndDeficit({
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-500" />
-              Báo Cáo Tài Chính & Quỹ Giải CNHP
+              Báo Cáo Quỹ Phạt & Quỹ Giải Thưởng CNHP
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Minh bạch thu phí tham dự, tiền phạt và tiền thưởng cho runner
+              Minh bạch thu tiền phạt thể lệ (50.000đ/km & 50.000đ/buổi), tiền thưởng tuần và quỹ giải
             </p>
           </div>
 
@@ -117,57 +117,54 @@ export default function FinanceAndDeficit({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: Tổng tiền phạt phát sinh */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
             <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Phí Tham Dự (200k/người)
+              Tổng Quỹ Phạt Đã Thu
             </span>
-            <span className="text-lg font-black text-slate-900 dark:text-white">
-              {formatCurrency(financialOverview.totalFeeCollected)}
-            </span>
-            <span className="text-[11px] text-emerald-600 block mt-1">
-              {users.filter((u) => u.isPaidFee).length}/{users.length} người đã đóng
-            </span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-            <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Tổng Tiền Phạt Đã Thu
-            </span>
-            <span className="text-lg font-black text-rose-500">
+            <span className="text-2xl font-black text-rose-500">
               +{formatCurrency(financialOverview.totalPenalties)}
             </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Từ thiếu km & thiếu buổi</span>
+            <span className="text-[11px] text-slate-400 block mt-1">Từ thiếu km & thiếu buổi chạy</span>
           </div>
 
+          {/* Card 2: Quy chuẩn thể lệ phạt */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
             <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Thưởng Tuần (300k/tuần)
+              Quy Định Mức Phạt
             </span>
-            <span className="text-lg font-black text-amber-500">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                • Thiếu 1 km: <strong className="text-rose-600 dark:text-rose-400 font-black">50.000đ</strong>
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                • Thiếu 1 buổi: <strong className="text-rose-600 dark:text-rose-400 font-black">50.000đ</strong>
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 block mt-1">Chỉ tiêu tuần: 15km & 3 buổi</span>
+          </div>
+
+          {/* Card 3: Thưởng tuần */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
+            <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
+              Đã Chi Thưởng Tuần
+            </span>
+            <span className="text-2xl font-black text-amber-500">
               -{formatCurrency(financialOverview.totalWeeklyRewards)}
             </span>
             <span className="text-[11px] text-slate-400 block mt-1">Nhất 150k • Nhì 100k • Ba 50k</span>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-            <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Thưởng Chung Cuộc
-            </span>
-            <span className="text-lg font-black text-indigo-500">
-              -{formatCurrency(financialOverview.totalFinalRewards)}
-            </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Đồng đội & Cá nhân</span>
-          </div>
-
-          <div className="col-span-2 lg:col-span-1 p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-300 dark:border-emerald-800">
+          {/* Card 4: Số dư quỹ giải */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-300 dark:border-emerald-800">
             <span className="text-xs text-emerald-800 dark:text-emerald-300 font-bold block mb-1">
-              Số Dư Quỹ Liên Hoan 🎉
+              Số Dư Quỹ Phạt Hiện Có 🎉
             </span>
-            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCurrency(financialOverview.remainingFund)}
             </span>
-            <span className="text-[11px] text-emerald-700/80 block mt-1">Dành cho gala tổng kết</span>
+            <span className="text-[11px] text-emerald-700/80 block mt-1">Dành cho thưởng chung cuộc & gala</span>
           </div>
         </div>
       </div>

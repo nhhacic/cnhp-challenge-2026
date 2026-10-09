@@ -137,7 +137,7 @@ const userActivitiesMissingDay: Activity[] = [
 ];
 const statMissingDay = calculateUserWeeklyStat('u-miss-day', testWeek, userActivitiesMissingDay, 0);
 assert(statMissingDay.missingDays === 1, 'Xác định thiếu đúng 1 buổi chạy');
-assert(statMissingDay.penaltyDaysAmount === 20000, 'Phạt 20.000đ do thiếu 1 buổi chạy');
+assert(statMissingDay.penaltyDaysAmount === 50000, 'Phạt 50.000đ do thiếu 1 buổi chạy');
 assert(statMissingDay.deficitKm === 0, 'Không bị phạt thiếu km vì đã chạy 16km >= 15km');
 
 // 2.4 Thiếu km & Quy tắc làm tròn 0.01km tính 1km: chạy 3 buổi tổng 14.95km (thiếu 0.05km)
@@ -149,7 +149,7 @@ const userActivitiesDeficit: Activity[] = [
 const statDeficit = calculateUserWeeklyStat('u-deficit', testWeek, userActivitiesDeficit, 0);
 assert(statDeficit.deficitKm === 0.05, 'Tính chính xác số km thiếu là 0.05 km');
 assert(statDeficit.roundedDeficitKm === 1, 'Làm tròn thiếu 0.05km thành 1km (thể lệ quy định 0.01km tính 1km)');
-assert(statDeficit.penaltyKmAmount === 20000, 'Phạt 20.000đ tiền thiếu km');
+assert(statDeficit.penaltyKmAmount === 50000, 'Phạt 50.000đ tiền thiếu km');
 assert(statDeficit.rolledOverToNextWeek === 0.05, 'Nợ 0.05km được chuyển sang tuần kế tiếp');
 
 // 2.5 Nợ tuần trước chuyển sang tuần sau: nợ 2.0km -> chỉ tiêu tuần 2 là 17.0km
@@ -157,7 +157,7 @@ const statWeek2 = calculateUserWeeklyStat('u-deficit', { ...testWeek, weekNumber
 assert(statWeek2.totalTargetKm === 17.0, 'Tuần 2 phải chạy 15km gốc + 2km nợ = 17km');
 assert(statWeek2.isCompleted, 'Chạy 21km >= 17km nên hoàn thành xuất sắc');
 
-// 2.6 Tuần cuối (Tuần 8): Phạt gấp đôi 40.000đ/km, không còn chạy bù
+// 2.6 Tuần cuối (Tuần 8): Phạt 50.000đ/km, không còn chạy bù
 const finalWeek: Week = {
   weekNumber: 8,
   name: 'Tuần 8 (Chung kết)',
@@ -169,9 +169,9 @@ const finalWeek: Week = {
 const statFinal = calculateUserWeeklyStat('u-final', finalWeek, [
   { ...baseActivity, id: 'a1', startDate: '2026-12-01T06:00:00Z', distanceKm: 12.0 }
 ], 0);
-// Thiếu: 15 - 12 = 3km. Làm tròn: 3km. Phạt tuần cuối: 3 * 40.000 = 120.000đ
+// Thiếu: 15 - 12 = 3km. Làm tròn: 3km. Phạt: 3 * 50.000 = 150.000đ
 assert(statFinal.roundedDeficitKm === 3, 'Thiếu 3km ở tuần cuối');
-assert(statFinal.penaltyKmAmount === 120000, 'Tuần cuối phạt gấp đôi 40.000đ/km -> 120.000đ');
+assert(statFinal.penaltyKmAmount === 150000, 'Tuần cuối thiếu 3km phạt 3 * 50.000đ -> 150.000đ');
 assert(statFinal.rolledOverToNextWeek === 0, 'Tuần cuối không chuyển nợ sang tuần sau (kết thúc giải)');
 
 // ----------------------------------------------------

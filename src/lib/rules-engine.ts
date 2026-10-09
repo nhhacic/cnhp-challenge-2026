@@ -18,10 +18,10 @@ export const RULES = {
   WEEKLY_MIN_DAYS: 3,
   WEEKLY_MIN_KM: 15.0,
   WEEKLY_TEAM_CAP_KM: 40.0,
-  PENALTY_PER_MISSING_DAY: 20000,
-  PENALTY_PER_MISSING_KM: 20000,
-  PENALTY_PER_MISSING_KM_FINAL_WEEK: 40000, // Gấp đôi tuần cuối
-  ENTRY_FEE: 200000,
+  PENALTY_PER_MISSING_DAY: 50000, // Thiếu 1 buổi phạt 50.000đ
+  PENALTY_PER_MISSING_KM: 50000, // Thiếu 1 km phạt 50.000đ
+  PENALTY_PER_MISSING_KM_FINAL_WEEK: 50000, // 50.000đ/km
+  ENTRY_FEE: 0, // Bỏ phần phí tham dự
   WEEKLY_TEAM_REWARDS: [150000, 100000, 50000],
   FINAL_TEAM_REWARDS: [300000, 200000, 100000],
   FINAL_INDIVIDUAL_REWARDS: [200000, 150000, 100000],
@@ -161,7 +161,7 @@ export function calculateUserWeeklyStat(
     // Thể lệ: 0.01 km thiếu tính là 1 km thiếu -> làm tròn lên (Math.ceil)
     roundedDeficitKm = deficitKm > 0 ? Math.ceil(deficitKm) : 0;
 
-    // Phạt thiếu km (tuần cuối phạt gấp đôi 40.000đ/km, tuần thường 20.000đ/km)
+    // Phạt thiếu km (50.000đ/km)
     const kmPenaltyRate = week.isFinalWeek
       ? RULES.PENALTY_PER_MISSING_KM_FINAL_WEEK
       : RULES.PENALTY_PER_MISSING_KM;
