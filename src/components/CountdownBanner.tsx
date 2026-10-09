@@ -10,6 +10,7 @@ interface CountdownBannerProps {
   totalKmAll: number;
   totalUsersCount: number;
   financialOverview: FinancialOverview;
+  onViewRules?: () => void;
 }
 
 export default function CountdownBanner({
@@ -17,6 +18,7 @@ export default function CountdownBanner({
   totalKmAll,
   totalUsersCount,
   financialOverview,
+  onViewRules,
 }: CountdownBannerProps) {
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-5 sm:p-7 shadow-xl mb-6 sm:mb-8 relative overflow-hidden border border-orange-500/20">
@@ -84,6 +86,14 @@ export default function CountdownBanner({
               <span className="px-2.5 py-1 rounded-lg bg-white/10 text-amber-300 border border-white/10 flex items-center gap-1">
                 🔄 Km thiếu được nợ chạy bù tuần sau
               </span>
+              {onViewRules && (
+                <button
+                  onClick={onViewRules}
+                  className="px-2.5 py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 flex items-center gap-1 transition-all active:scale-95"
+                >
+                  📜 Xem Thể Lệ Đầy Đủ
+                </button>
+              )}
             </div>
           </div>
 

@@ -79,8 +79,9 @@ export async function GET() {
     // 4. Tính Xếp hạng Đội chung cuộc
     const overallTeams = rankOverallTeams(teams, allTeamWeeklyStats);
 
-    // 5. Báo cáo Tài chính & Quỹ Giải (Bỏ phí tham dự, toàn bộ quỹ tạo từ tiền phạt)
-    const totalFeeCollected = 0;
+    // 5. Báo cáo Tài chính & Quỹ Giải theo đúng thể lệ (Phí tham dự 200.000đ/người + Quỹ phạt)
+    const entryFeePerPerson = data.challenge?.entryFee ?? RULES.ENTRY_FEE;
+    const totalFeeCollected = users.filter((u) => u.isPaidFee).length * entryFeePerPerson;
     const totalPenalties = allUserWeeklyStats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
     const totalWeeklyRewards = allTeamWeeklyStats.reduce((sum, s) => sum + s.rewardAmount, 0);
     const totalFinalRewards =
@@ -88,8 +89,8 @@ export async function GET() {
       maleRankings.reduce((sum, m) => sum + m.totalRewardEarned, 0) +
       femaleRankings.reduce((sum, f) => sum + f.totalRewardEarned, 0);
 
-    // Quỹ giải = Tổng tiền phạt phát sinh - Tiền thưởng tuần đã trao
-    const remainingFund = Math.max(0, totalPenalties - totalWeeklyRewards);
+    // Quỹ giải = Phí tham dự đã thu + Tổng tiền phạt - Tiền thưởng tuần đã trao
+    const remainingFund = Math.max(0, totalFeeCollected + totalPenalties - totalWeeklyRewards);
 
     const financialOverview: FinancialOverview = {
       totalFeeCollected,

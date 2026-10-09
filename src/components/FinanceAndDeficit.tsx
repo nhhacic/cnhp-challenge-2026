@@ -132,10 +132,10 @@ export default function FinanceAndDeficit({
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-500" />
-              Báo Cáo Quỹ Phạt & Quỹ Giải Thưởng CNHP
+              Báo Cáo Tài Chính & Quỹ Giải Thưởng CNHP
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Minh bạch thu tiền phạt thể lệ (50.000đ/km & 50.000đ/buổi), tiền thưởng tuần và quỹ giải
+              Minh bạch thu phí tham dự (200k/người), tiền phạt thể lệ (20.000đ/km & 20.000đ/buổi), tiền thưởng tuần và quỹ giải
             </p>
           </div>
 
@@ -151,31 +151,26 @@ export default function FinanceAndDeficit({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: Tổng tiền phạt phát sinh */}
+          {/* Card 1: Phí tham dự */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
             <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Tổng Quỹ Phạt Đã Thu
+              Phí Tham Dự (200k/người)
+            </span>
+            <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+              +{formatCurrency(financialOverview.totalFeeCollected)}
+            </span>
+            <span className="text-[11px] text-slate-400 block mt-1">Từ các thành viên tham gia challenge</span>
+          </div>
+
+          {/* Card 2: Quỹ phạt đã thu */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
+            <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
+              Quỹ Phạt Đã Thu
             </span>
             <span className="text-2xl font-black text-rose-500">
               +{formatCurrency(financialOverview.totalPenalties)}
             </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Từ thiếu km & thiếu buổi chạy</span>
-          </div>
-
-          {/* Card 2: Quy chuẩn thể lệ phạt */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-            <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
-              Quy Định Mức Phạt
-            </span>
-            <div className="space-y-0.5">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                • Thiếu 1 km: <strong className="text-rose-600 dark:text-rose-400 font-black">50.000đ</strong>
-              </span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                • Thiếu 1 buổi: <strong className="text-rose-600 dark:text-rose-400 font-black">50.000đ</strong>
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-400 block mt-1">Chỉ tiêu tuần: 15km & 3 buổi</span>
+            <span className="text-[11px] text-slate-400 block mt-1">Thiếu km: 20k/km (tuần cuối 40k) • Buổi: 20k</span>
           </div>
 
           {/* Card 3: Thưởng tuần */}
@@ -192,7 +187,7 @@ export default function FinanceAndDeficit({
           {/* Card 4: Số dư quỹ giải */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-300 dark:border-emerald-800">
             <span className="text-xs text-emerald-800 dark:text-emerald-300 font-bold block mb-1">
-              Số Dư Quỹ Phạt Hiện Có 🎉
+              Số Dư Quỹ Giải Hiện Có 🎉
             </span>
             <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCurrency(financialOverview.remainingFund)}
@@ -214,7 +209,7 @@ export default function FinanceAndDeficit({
                   Danh Sách Nộp Phạt Tuần {currentWeekNumber}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {selectedWeek ? `${selectedWeek.startDate} đến ${selectedWeek.endDate}` : ''} • Thiếu 1km: 50.000đ • Thiếu 1 buổi: 50.000đ
+                  {selectedWeek ? `${selectedWeek.startDate} đến ${selectedWeek.endDate}` : ''} • Thiếu 1km: 20.000đ (tuần cuối 40.000đ) • Thiếu 1 buổi: 20.000đ
                 </p>
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400">

@@ -8,6 +8,7 @@ import IndividualLeaderboard from '@/components/IndividualLeaderboard';
 import FinanceAndDeficit from '@/components/FinanceAndDeficit';
 import AdminPanel from '@/components/AdminPanel';
 import RunnerDetailModal from '@/components/RunnerDetailModal';
+import ChallengeRules from '@/components/ChallengeRules';
 import {
   Activity,
   Team,
@@ -19,7 +20,7 @@ import {
   OverallTeamStat,
   FinancialOverview,
 } from '@/types';
-import { Trophy, Users, DollarSign, Shield, Flame, Activity as ActivityIcon } from 'lucide-react';
+import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon } from 'lucide-react';
 
 export default function HomePage() {
   const [data, setData] = useState<{
@@ -36,7 +37,7 @@ export default function HomePage() {
 
   const [loading, setLoading] = useState(true);
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(1); // Mặc định Tuần 1
-  const [activeTab, setActiveTab] = useState<'TEAM' | 'INDIVIDUAL' | 'FINANCE' | 'ADMIN'>('TEAM');
+  const [activeTab, setActiveTab] = useState<'TEAM' | 'INDIVIDUAL' | 'FINANCE' | 'RULES' | 'ADMIN'>('TEAM');
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -255,6 +256,7 @@ export default function HomePage() {
           totalKmAll={totalKmAll}
           totalUsersCount={users.length}
           financialOverview={financialOverview}
+          onViewRules={() => setActiveTab('RULES')}
         />
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
@@ -293,6 +295,18 @@ export default function HomePage() {
           >
             <DollarSign className="w-4 h-4" />
             <span>Sổ Nợ Chạy Bù & Quỹ Giải</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('RULES')}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeTab === 'RULES'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Thể Lệ Giải Đấu</span>
           </button>
 
           {isAdmin && (
@@ -345,6 +359,10 @@ export default function HomePage() {
             userWeeklyStatsMap={userWeeklyStats}
             rankedTeamsByWeek={rankedTeamsByWeek}
           />
+        )}
+
+        {activeTab === 'RULES' && (
+          <ChallengeRules />
         )}
 
         {activeTab === 'ADMIN' && (
