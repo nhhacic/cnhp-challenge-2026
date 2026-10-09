@@ -2,9 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { Activity, Team, User, Week } from '@/types';
 import { validateActivity } from './rules-engine';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getFirebaseDb, isFirebaseConfigured } from './firebase';
-
 export interface ChallengeData {
   challenge: {
     name: string;
@@ -19,10 +16,13 @@ export interface ChallengeData {
   activities: Activity[];
 }
 
+declare global {
+  var __challengeData: ChallengeData | undefined;
+}
+
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'challenge_data.json');
-const FIRESTORE_COLLECTION = 'cnhp_challenge';
-const FIRESTORE_DOC_ID = 'challenge_data_2026';
+const TMP_FILE = path.join('/tmp', 'challenge_data.json');
 
 export function getInitialDefaultData(): ChallengeData {
   const weeks: Week[] = [
@@ -81,76 +81,57 @@ export function getInitialDefaultData(): ChallengeData {
 }
 
 export function loadData(): ChallengeData {
+  if (globalThis.__challengeData) {
+    return globalThis.__challengeData;
+  }
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (fs.existsSync(TMP_FILE)) {
+      const raw = fs.readFileSync(TMP_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      globalThis.__challengeData = parsed;
+      return parsed;
     }
-    if (!fs.existsSync(DATA_FILE)) {
-      const initial = getInitialDefaultData();
-      fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), 'utf-8');
-      return initial;
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      globalThis.__challengeData = parsed;
+      return parsed;
     }
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(raw);
+    const initial = getInitialDefaultData();
+    globalThis.__challengeData = initial;
+    return initial;
   } catch (error) {
-    console.error('Lỗi khi đọc challenge_data.json, sử dụng dữ liệu mặc định:', error);
-    return getInitialDefaultData();
+    console.error('Lỗi khi đọc dữ liệu, sử dụng dữ liệu mặc định:', error);
+    const initial = getInitialDefaultData();
+    globalThis.__challengeData = initial;
+    return initial;
   }
 }
 
 export function saveData(data: ChallengeData): void {
+  globalThis.__challengeData = data;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (error) {
-    console.error('Lỗi khi ghi challenge_data.json:', error);
+    try {
+      fs.writeFileSync(TMP_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (tmpErr) {
+      console.error('Lỗi khi ghi /tmp/challenge_data.json:', tmpErr);
+    }
   }
 }
 
-// =================== ASYNC / FIREBASE INTEGRATION ===================
+// =================== ASYNC STORAGE (LOCAL & MEMORY - NO FIREBASE) ===================
 
 export async function loadDataAsync(): Promise<ChallengeData> {
-  if (isFirebaseConfigured()) {
-    try {
-      const db = getFirebaseDb();
-      if (db) {
-        const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data() as ChallengeData;
-          saveData(data); // đồng bộ vào cache local
-          return data;
-        } else {
-          // Chưa có document trên Firestore -> Đẩy dữ liệu hiện tại lên Firestore
-          const localData = loadData();
-          await setDoc(docRef, localData);
-          return localData;
-        }
-      }
-    } catch (e) {
-      console.error('Lỗi đọc dữ liệu từ Cloud Firestore, dùng dữ liệu local fallback:', e);
-    }
-  }
   return loadData();
 }
 
 export async function saveDataAsync(data: ChallengeData): Promise<void> {
   saveData(data);
-  if (isFirebaseConfigured()) {
-    try {
-      const db = getFirebaseDb();
-      if (db) {
-        // Làm sạch dữ liệu để tránh undefined gây lỗi trên Firestore
-        const cleanData = JSON.parse(JSON.stringify(data));
-        const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
-        await setDoc(docRef, cleanData);
-      }
-    } catch (e) {
-      console.error('Lỗi lưu dữ liệu lên Cloud Firestore:', e);
-    }
-  }
 }
 
 export async function saveActivityAsync(activity: Activity): Promise<Activity> {
@@ -253,27 +234,7 @@ export async function deleteTeamAsync(teamId: string): Promise<{ success: boolea
 }
 
 export async function syncLocalToFirebase(): Promise<{ success: boolean; message: string }> {
-  if (!isFirebaseConfigured()) {
-    return {
-      success: false,
-      message: 'Firebase chưa được cấu hình. Vui lòng thêm các biến môi trường Firebase vào file .env.local',
-    };
-  }
-  try {
-    const db = getFirebaseDb();
-    if (!db) {
-      return { success: false, message: 'Không thể kết nối đến Firebase Firestore' };
-    }
-    const localData = loadData();
-    const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
-    await setDoc(docRef, localData);
-    return {
-      success: true,
-      message: `Đã đồng bộ thành công ${localData.users.length} thành viên, ${localData.teams.length} đội và ${localData.activities.length} bài chạy lên Firebase Firestore!`,
-    };
-  } catch (err: any) {
-    return { success: false, message: 'Lỗi đồng bộ Firebase: ' + (err.message || String(err)) };
-  }
+  return { success: true, message: 'Đã tắt tính năng đồng bộ Firebase.' };
 }
 
 // Đồng bộ các hàm cũ (đồng bộ)

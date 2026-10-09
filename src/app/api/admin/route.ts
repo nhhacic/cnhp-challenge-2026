@@ -8,9 +8,7 @@ import {
   saveUserAsync,
   deleteUserAsync,
   getInitialDefaultData,
-  syncLocalToFirebase,
 } from '@/lib/storage';
-import { isFirebaseConfigured } from '@/lib/firebase';
 import { User, Team } from '@/types';
 
 export async function POST(req: NextRequest) {
@@ -20,14 +18,13 @@ export async function POST(req: NextRequest) {
 
     if (action === 'check_firebase') {
       return NextResponse.json({
-        configured: isFirebaseConfigured(),
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || null,
+        configured: false,
+        projectId: null,
       });
     }
 
     if (action === 'sync_firebase') {
-      const res = await syncLocalToFirebase();
-      return NextResponse.json(res);
+      return NextResponse.json({ success: true, message: 'Đã tắt tính năng đồng bộ Firebase.' });
     }
 
     if (action === 'reset_seed') {
