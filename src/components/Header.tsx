@@ -54,109 +54,104 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo & Giải đấu */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onSelectWeek(null)}>
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-lg shadow-orange-500/30 text-white font-black text-xl">
-              <Flame className="w-6 h-6 animate-pulse" />
+          <div className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0" onClick={() => onSelectWeek(null)}>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-lg shadow-orange-500/30 text-white font-black text-lg sm:text-xl flex-shrink-0">
+              <Flame className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-base sm:text-xl text-slate-900 dark:text-white tracking-tight">
-                  CNHP THU ĐÔNG 2026
+              <div className="flex items-center space-x-1.5">
+                <span className="font-extrabold text-sm sm:text-lg lg:text-xl text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
+                  <span className="sm:hidden">CNHP 2026</span>
+                  <span className="hidden sm:inline">CNHP THU ĐÔNG 2026</span>
                 </span>
-                <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded-full bg-orange-100 dark:bg-orange-950/70 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                <span className="hidden md:inline-block px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-orange-100 dark:bg-orange-950/70 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
                   Challenge
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                CNHP Challenge Running Club • 11/10/2026 - 06/12/2026
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden lg:block">
+                CNHP Running Club • 11/10/2026 - 06/12/2026
               </p>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {/* Đăng nhập hoặc hiển thị user Strava */}
             {connectedUser ? (
-              <div className="flex items-center space-x-1.5 sm:space-x-2 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 p-1 sm:px-2.5 sm:py-1 rounded-2xl">
+              <div className="flex items-center space-x-1.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 p-1 sm:px-2.5 sm:py-1 rounded-xl">
                 {connectedUser.avatar ? (
                   <img
                     src={connectedUser.avatar}
                     alt={connectedUser.name}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-orange-300 object-cover"
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-orange-300 object-cover"
                   />
                 ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">
                     {connectedUser.name?.[0] || 'V'}
                   </div>
                 )}
-                <div className="hidden sm:block text-left">
+                <div className="hidden lg:block text-left">
                   <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1 leading-tight">
                     <span>{connectedUser.name}</span>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
-                  <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">
-                    Strava Đã Kết Nối
-                  </span>
                 </div>
                 {onLogout && (
                   <button
                     onClick={onLogout}
-                    title="Đăng xuất khỏi tài khoản này"
-                    className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition"
+                    title="Đăng xuất"
+                    className="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition"
                   >
-                    <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <LogOut className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             ) : (
               <button
                 onClick={handleConnectStrava}
-                className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md shadow-orange-600/20 transition-all"
+                className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-semibold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md transition-all whitespace-nowrap"
               >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
                 </svg>
-                <span className="hidden sm:inline">Đăng nhập Strava</span>
-                <span className="sm:hidden">Strava</span>
+                <span className="hidden sm:inline">Strava</span>
               </button>
             )}
 
-            {/* Nút Đồng bộ bài chạy */}
+            {/* Nút Đồng bộ */}
             <button
               onClick={onSyncStrava}
               disabled={isSyncing}
-              title="Đồng bộ hoạt động mới từ Strava"
-              className="flex items-center justify-center p-2 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
+              title="Đồng bộ bài chạy mới từ Strava"
+              className="p-2 sm:px-2.5 sm:py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
             >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-orange-500' : ''}`} />
-              <span className="ml-1.5 hidden md:inline">{isSyncing ? 'Đang sync...' : 'Đồng bộ'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-orange-500' : ''}`} />
             </button>
 
             {/* Nút Chế độ Admin */}
             <button
               onClick={onToggleAdmin}
-              title="Bật/Tắt chế độ Quản trị & Trọng tài"
+              title={isAdmin ? 'Tắt chế độ Quản trị' : 'Bật chế độ Quản trị & Trọng tài'}
               className={`flex items-center justify-center p-2 rounded-xl transition-all ${
                 isAdmin
                   ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
                   : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span className="ml-1 text-xs font-semibold hidden sm:inline">
-                {isAdmin ? 'Trọng tài: BẬT' : 'Trọng tài'}
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span className="ml-1 text-xs font-bold hidden md:inline">
+                {isAdmin ? 'Admin' : 'Trọng tài'}
               </span>
             </button>
 
             {/* Nút Cài đặt App Mobile */}
             <button
               onClick={() => setShowInstallModal(true)}
-              title="Cài đặt App CNHP lên điện thoại iPhone & Android"
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-bold text-orange-600 dark:text-orange-400 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 border border-orange-200 dark:border-orange-800 rounded-xl transition-all shadow-sm active:scale-95"
+              title="Cài đặt App CNHP lên điện thoại"
+              className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-xl transition-all active:scale-95"
             >
-              <Smartphone className="w-4 h-4 text-orange-500" />
-              <span className="hidden sm:inline">Cài App</span>
-              <span className="sm:hidden text-[11px]">App</span>
+              <Smartphone className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-xs font-bold">App</span>
             </button>
 
             {/* Dark mode toggle */}
@@ -165,7 +160,7 @@ export default function Header({
               title="Chuyển chế độ Sáng / Tối"
               className="p-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+              {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
             </button>
           </div>
         </div>

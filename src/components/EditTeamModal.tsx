@@ -268,7 +268,7 @@ export default function EditTeamModal({
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: t.color || '#ff5722' }}
                 />
-                <span className="max-w-[120px] truncate">{t.name}</span>
+                <span className="whitespace-nowrap">{t.name}</span>
               </button>
             );
           })}

@@ -135,7 +135,187 @@ export default function IndividualLeaderboard({
 
       {/* Main Leaderboard Table */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: Runner Cards */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredRows.map((row, idx) => {
+            const rank = idx + 1;
+            const { user, team, totalKm, averagePaceSeconds, daysRun, totalPenalty, totalReward, weeklyStat } = row;
+
+            return (
+              <div
+                key={user.id}
+                onClick={() => onSelectUser(user)}
+                className="p-4 space-y-3 active:bg-slate-50 dark:active:bg-slate-800/50 cursor-pointer transition-colors"
+              >
+                {/* Header: Rank + Avatar + Name + Team badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0 w-7 text-center">
+                      {rank === 1 ? (
+                        <span className="inline-flex w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-black items-center justify-center text-xs shadow-sm">
+                          1
+                        </span>
+                      ) : rank === 2 ? (
+                        <span className="inline-flex w-7 h-7 rounded-full bg-slate-300 text-slate-900 font-black items-center justify-center text-xs">
+                          2
+                        </span>
+                      ) : rank === 3 ? (
+                        <span className="inline-flex w-7 h-7 rounded-full bg-amber-700 text-white font-black items-center justify-center text-xs">
+                          3
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-500">#{rank}</span>
+                      )}
+                    </div>
+
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-11 h-11 rounded-full object-cover border-2 border-slate-200 dark:border-slate-700 flex-shrink-0"
+                    />
+
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-sm sm:text-base">
+                        <span>{user.name}</span>
+                        {user.isCaptain && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 font-bold">
+                            Captain
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        <span>{user.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'}</span>
+                        <span>•</span>
+                        {team ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold"
+                            style={{
+                              backgroundColor: `${team.color}15`,
+                              color: team.color,
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: team.color }} />
+                            <span>{team.name}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Chưa chia</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectUser(user);
+                    }}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-orange-500 transition-colors flex-shrink-0"
+                    title="Xem chi tiết"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Metrics 3-box Grid */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                    <span className="text-[11px] text-slate-500 block">Tổng cự ly</span>
+                    <span className="text-base font-black text-orange-600 dark:text-orange-400">
+                      {formatKm(totalKm)}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                    <span className="text-[11px] text-slate-500 block">Pace TB</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      {formatPace(averagePaceSeconds)}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                    <span className="text-[11px] text-slate-500 block">Buổi chạy</span>
+                    {!isOverall ? (
+                      <div className="inline-flex items-center gap-1 mt-0.5">
+                        {[1, 2, 3].map((step) => {
+                          const isRun = daysRun >= step;
+                          return (
+                            <span
+                              key={step}
+                              className={`w-2 h-2 rounded-full ${
+                                isRun ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                              }`}
+                            />
+                          );
+                        })}
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 ml-0.5">
+                          {daysRun}/3
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {daysRun} buổi
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status & Financial Footer */}
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                  <div>
+                    {!isOverall ? (
+                      weeklyStat?.isCompleted ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                          <CheckCircle className="w-3 h-3" />
+                          Đạt chỉ tiêu
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {weeklyStat && weeklyStat.missingDays > 0 && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400">
+                              Thiếu {weeklyStat.missingDays} buổi
+                            </span>
+                          )}
+                          {weeklyStat && weeklyStat.deficitKm > 0 && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400">
+                              Thiếu {weeklyStat.deficitKm}km (nợ)
+                            </span>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-slate-500 text-[11px]">Thành tích toàn giải</span>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    {isOverall ? (
+                      totalReward > 0 ? (
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                          +{formatCurrency(totalReward)}
+                        </span>
+                      ) : totalPenalty > 0 ? (
+                        <span className="font-bold text-rose-500 text-xs">
+                          -{formatCurrency(totalPenalty)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">0 đ</span>
+                      )
+                    ) : totalPenalty > 0 ? (
+                      <span className="font-bold text-rose-500 text-xs">
+                        Phạt: -{formatCurrency(totalPenalty)}
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">0 đ phạt</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop View: Full Leaderboard Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
               <tr>

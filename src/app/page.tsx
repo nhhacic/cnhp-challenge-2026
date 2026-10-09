@@ -277,53 +277,57 @@ export default function HomePage() {
         />
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
-        <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-6 overflow-x-auto scrollbar-none">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-5 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('TEAM')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === 'TEAM'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Trophy className="w-4 h-4" />
-            <span>Xếp Hạng Tập Thể (Team)</span>
+            <Trophy className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Tập Thể</span>
+            <span className="hidden sm:inline">Xếp Hạng Tập Thể (Team)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('INDIVIDUAL')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === 'INDIVIDUAL'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Xếp Hạng Cá Nhân (Nam / Nữ)</span>
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Cá Nhân</span>
+            <span className="hidden sm:inline">Xếp Hạng Cá Nhân (Nam / Nữ)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('FINANCE')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === 'FINANCE'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <DollarSign className="w-4 h-4" />
-            <span>Sổ Nợ Chạy Bù & Quỹ Giải</span>
+            <DollarSign className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Quỹ & Phạt</span>
+            <span className="hidden sm:inline">Sổ Nợ Chạy Bù & Quỹ Giải</span>
           </button>
 
           <button
             onClick={() => setActiveTab('RULES')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === 'RULES'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            <span>Thể Lệ Giải Đấu</span>
+            <BookOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Thể Lệ</span>
+            <span className="hidden sm:inline">Thể Lệ Giải Đấu</span>
           </button>
 
           <button
@@ -336,14 +340,15 @@ export default function HomePage() {
               }
               setActiveTab('ADMIN');
             }}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === 'ADMIN'
                 ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
                 : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
             }`}
           >
-            <Shield className="w-4 h-4" />
-            <span>Quản Trị / Trọng Tài</span>
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Trọng Tài</span>
+            <span className="hidden sm:inline">Quản Trị / Trọng Tài</span>
           </button>
         </div>
 

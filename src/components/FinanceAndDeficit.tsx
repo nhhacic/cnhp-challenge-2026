@@ -228,8 +228,79 @@ export default function FinanceAndDeficit({
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+              <>
+                {/* Mobile View: Penalty Cards */}
+                <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                  {currentWeekPenalties.map(({ user, team, stat }) => {
+                    const isSelected = selectedPaymentUser?.id === user.id;
+                    return (
+                      <div
+                        key={user.id}
+                        className={`p-3.5 space-y-2.5 rounded-2xl transition-colors ${
+                          isSelected
+                            ? 'bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                            />
+                            <div>
+                              <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                                {user.name}
+                              </div>
+                              <span
+                                className="text-[10px] font-semibold"
+                                style={{ color: team?.color }}
+                              >
+                                {team?.name}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-500 block">Tiền phạt</span>
+                            <span className="font-black text-rose-600 dark:text-rose-400 text-sm">
+                              {formatCurrency(stat?.totalPenaltyAmount || 0)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Chi tiết lỗi */}
+                        <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl text-xs space-y-1">
+                          {stat && stat.missingDays > 0 && (
+                            <div className="text-amber-700 dark:text-amber-400 font-medium flex items-center justify-between">
+                              <span>• Thiếu {stat.missingDays} buổi:</span>
+                              <span className="font-bold">{formatCurrency(stat.penaltyDaysAmount)}</span>
+                            </div>
+                          )}
+                          {stat && stat.deficitKm > 0 && (
+                            <div className="text-rose-700 dark:text-rose-400 font-medium flex items-center justify-between">
+                              <span>• Thiếu {stat.deficitKm}km:</span>
+                              <span className="font-bold">{formatCurrency(stat.penaltyKmAmount)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => handleSelectRunnerForPayment(user, stat?.totalPenaltyAmount || 0)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-sm transition-all active:scale-95"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                          <span>Chọn Nộp Phạt (Điền cú pháp & QR)</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop View: Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-xs font-bold uppercase">
                     <tr>
                       <th className="py-2.5 px-3">Vận Động Viên</th>
@@ -302,8 +373,9 @@ export default function FinanceAndDeficit({
                       );
                     })}
                   </tbody>
-                </table>
-              </div>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 
@@ -451,8 +523,80 @@ export default function FinanceAndDeficit({
             ✨ Tuyệt vời! Hiện tại không có thành viên nào bị nợ km chạy bù!
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <>
+            {/* Mobile View: Deficit Cards */}
+            <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {deficitLedger.map((row) => (
+                <div key={row.user.id} className="p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={row.user.avatar}
+                        alt={row.user.name}
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                      />
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                          {row.user.name}
+                        </div>
+                        <span
+                          className="text-[10px] font-semibold"
+                          style={{ color: row.team?.color }}
+                        >
+                          {row.team?.name}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {row.isCleared ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Đã Sạch Nợ
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400">
+                          Còn thiếu {formatKm(row.remainingDeficit)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 3-grid stats */}
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl">
+                      <span className="text-[10px] text-slate-500 block">Nợ trước</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {row.prevOwedKm > 0 ? formatKm(row.prevOwedKm) : '0 km'}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl">
+                      <span className="text-[10px] text-slate-500 block">Chỉ tiêu T{currentWeekNumber}</span>
+                      <span className="font-bold text-orange-600 dark:text-orange-400">
+                        {formatKm(row.currentTargetKm)}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl">
+                      <span className="text-[10px] text-slate-500 block">Đã chạy T{currentWeekNumber}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {formatKm(row.currentActualKm)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-slate-500 text-[11px]">Tổng tiền phạt lũy kế:</span>
+                    <span className="font-black text-rose-500 text-sm">
+                      {formatCurrency(row.totalPenalties)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop View: Deficit Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-xs font-bold uppercase">
                 <tr>
                   <th className="py-3 px-4">Vận Động Viên</th>
@@ -503,8 +647,9 @@ export default function FinanceAndDeficit({
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
