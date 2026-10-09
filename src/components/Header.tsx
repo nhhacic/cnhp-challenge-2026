@@ -141,7 +141,7 @@ export default function Header({
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span className="ml-1 text-xs font-semibold hidden lg:inline">
+              <span className="ml-1 text-xs font-semibold hidden sm:inline">
                 {isAdmin ? 'Trọng tài: BẬT' : 'Trọng tài'}
               </span>
             </button>

@@ -53,6 +53,12 @@ export default function HomePage() {
       setIsDarkMode(isDark);
       if (isDark) document.documentElement.classList.add('dark');
 
+      // 0. Phục hồi quyền Admin nếu đã bật trước đó
+      const savedAdmin = localStorage.getItem('cnhp_is_admin');
+      if (savedAdmin === 'true') {
+        setIsAdmin(true);
+      }
+
       // 1. Phục hồi user đã đăng nhập
       const savedUser = localStorage.getItem('cnhp_auth_user');
       if (savedUser) {
@@ -107,6 +113,14 @@ export default function HomePage() {
     }
   };
 
+  const handleToggleAdmin = () => {
+    const next = !isAdmin;
+    setIsAdmin(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cnhp_is_admin', String(next));
+    }
+  };
+
   const toggleDarkMode = () => {
     const next = !isDarkMode;
     setIsDarkMode(next);
@@ -119,10 +133,10 @@ export default function HomePage() {
     }
   };
 
-  // Tải dữ liệu từ API
-  const fetchData = async () => {
+  // Tải dữ liệu từ API (silent: không unmount DOM khi refresh nền)
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!data && !silent) setLoading(true);
       const res = await fetch('/api/data', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
@@ -131,7 +145,7 @@ export default function HomePage() {
     } catch (err) {
       console.error('Lỗi tải dữ liệu:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -242,7 +256,7 @@ export default function HomePage() {
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
         isAdmin={isAdmin}
-        onToggleAdmin={() => setIsAdmin(!isAdmin)}
+        onToggleAdmin={handleToggleAdmin}
         onSyncStrava={handleSyncStrava}
         isSyncing={isSyncing}
         connectedUser={connectedUser}
@@ -309,19 +323,25 @@ export default function HomePage() {
             <span>Thể Lệ Giải Đấu</span>
           </button>
 
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('ADMIN')}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeTab === 'ADMIN'
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              <span>Quản Trị / Trọng Tài</span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (!isAdmin) {
+                setIsAdmin(true);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('cnhp_is_admin', 'true');
+                }
+              }
+              setActiveTab('ADMIN');
+            }}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeTab === 'ADMIN'
+                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Quản Trị / Trọng Tài</span>
+          </button>
         </div>
 
         {/* Nội dung Tab đang chọn */}
@@ -331,8 +351,11 @@ export default function HomePage() {
             weeklyRankedTeams={weeklyRankedTeams}
             overallTeams={overallTeams}
             users={users}
+            teams={teams}
             userWeeklyStatsMap={userWeeklyStats}
             currentWeekNumber={selectedWeekNumber || 1}
+            onRefreshData={() => fetchData(true)}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -366,7 +389,7 @@ export default function HomePage() {
         )}
 
         {activeTab === 'ADMIN' && (
-          <AdminPanel teams={teams} users={users} onRefreshData={fetchData} />
+          <AdminPanel teams={teams} users={users} onRefreshData={() => fetchData(true)} />
         )}
       </main>
 

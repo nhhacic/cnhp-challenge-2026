@@ -23,6 +23,7 @@ import {
   X,
   Users,
 } from 'lucide-react';
+import EditTeamModal from '@/components/EditTeamModal';
 
 interface AdminPanelProps {
   teams: Team[];
@@ -61,12 +62,14 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Quản lý Đội Đua (Teams)
+  const [isEditTeamModalOpen, setIsEditTeamModalOpen] = useState(false);
+  const [teamIdForModal, setTeamIdForModal] = useState<string | null>(null);
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#ff5722');
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
 
-  // Chỉnh sửa Đội Đua
+  // Chỉnh sửa Đội Đua (inline fallback)
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState('');
   const [editingTeamColor, setEditingTeamColor] = useState('#ff5722');
@@ -520,13 +523,28 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
             </p>
           </div>
 
-          <button
-            onClick={() => setShowAddTeamModal(!showAddTeamModal)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{showAddTeamModal ? 'Đóng Form' : '+ Tạo Đội Đua Mới'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setTeamIdForModal(teams[0]?.id || null);
+                setIsEditTeamModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>✏️ Quản Lý & Đổi Tên Đội</span>
+            </button>
+            <button
+              onClick={() => {
+                setTeamIdForModal('CREATE_NEW');
+                setIsEditTeamModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Thêm Đội</span>
+            </button>
+          </div>
         </div>
 
         {/* Modal / Form thêm đội mới */}
@@ -686,13 +704,17 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
                         </h4>
                       </div>
 
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1.5">
                         <button
-                          onClick={() => handleStartEditTeam(team)}
+                          onClick={() => {
+                            setTeamIdForModal(team.id);
+                            setIsEditTeamModalOpen(true);
+                          }}
                           title="Chỉnh sửa tên và màu sắc đội"
-                          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-700 transition"
+                          className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 text-xs font-bold transition shadow-sm active:scale-95"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-3 h-3" />
+                          <span>Sửa tên</span>
                         </button>
                         <button
                           onClick={() => handleDeleteTeam(team)}
@@ -731,6 +753,16 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
             );
           })}
         </div>
+
+        {/* Modal Chỉnh Sửa & Quản Lý Đội */}
+        <EditTeamModal
+          isOpen={isEditTeamModalOpen}
+          onClose={() => setIsEditTeamModalOpen(false)}
+          initialTeamId={teamIdForModal}
+          teams={teams}
+          users={users}
+          onRefreshData={onRefreshData}
+        />
       </div>
 
       {/* ================= KHU VỰC 2: QUẢN LÝ THÀNH VIÊN ================= */}
