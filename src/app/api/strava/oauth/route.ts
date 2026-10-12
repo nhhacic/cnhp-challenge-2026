@@ -2,43 +2,41 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadDataAsync, saveDataAsync } from '@/lib/storage';
 import { Activity, ActivityType, User } from '@/types';
 import { validateActivity } from '@/lib/rules-engine';
+import { exchangeStravaAuthCode, getStravaClients } from '@/lib/strava';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
+  const state = searchParams.get('state'); // Chứa clientId hoặc 'client_1', 'client_2'
 
   if (error) {
-    return NextResponse.redirect(new URL('/?strava_error=' + encodeURIComponent(error), req.url));
+    let friendlyError = error;
+    if (error === 'access_denied') {
+      friendlyError = 'Bạn đã từ chối cấp quyền kết nối Strava.';
+    }
+    return NextResponse.redirect(new URL('/?strava_error=' + encodeURIComponent(friendlyError), req.url));
   }
 
-  const clientId = process.env.STRAVA_CLIENT_ID;
-  const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+  const configuredClients = getStravaClients();
 
-  // Nếu chưa có clientId/clientSecret (chạy local demo)
-  if (!clientId || !clientSecret || !code) {
+  // Nếu chưa có code
+  if (!code) {
     return NextResponse.redirect(
       new URL('/?strava_status=demo_connected&msg=' + encodeURIComponent('Đã kết nối tài khoản Strava thử nghiệm'), req.url)
     );
   }
 
-  try {
-    // 1. Đổi code lấy Token & Thông tin Athlete
-    const tokenRes = await fetch('https://www.strava.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code,
-        grant_type: 'authorization_code',
-      }),
-    });
+  if (configuredClients.length === 0) {
+    return NextResponse.redirect(
+      new URL('/?strava_error=' + encodeURIComponent('Chưa cấu hình Strava Client ID trên máy chủ'), req.url)
+    );
+  }
 
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok) {
-      throw new Error(tokenData.message || 'Không thể lấy token xác thực Strava');
-    }
+  try {
+    // 1. Đổi code lấy Token & Thông tin Athlete (hỗ trợ Multi-Client thông minh)
+    const preferredClientId = state ? state.trim() : undefined;
+    const { tokenData, clientIdUsed } = await exchangeStravaAuthCode(code, preferredClientId);
 
     const { access_token, refresh_token, expires_at, athlete } = tokenData;
 
@@ -50,6 +48,7 @@ export async function GET(req: NextRequest) {
       user.stravaAccessToken = access_token;
       user.stravaRefreshToken = refresh_token;
       user.stravaTokenExpiresAt = expires_at;
+      user.stravaClientId = clientIdUsed;
       user.name = `${athlete.firstname || ''} ${athlete.lastname || ''}`.trim() || user.name;
       user.avatar = athlete.profile || user.avatar;
     } else {
@@ -71,6 +70,7 @@ export async function GET(req: NextRequest) {
         stravaAccessToken: access_token,
         stravaRefreshToken: refresh_token,
         stravaTokenExpiresAt: expires_at,
+        stravaClientId: clientIdUsed,
         teamId: assignedTeamId,
         isCaptain: false,
         isPaidFee: false,

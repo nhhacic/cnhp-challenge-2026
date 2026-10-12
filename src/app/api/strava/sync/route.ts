@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadDataAsync, saveActivityAsync } from '@/lib/storage';
+import { loadDataAsync, saveActivityAsync, saveUserAsync } from '@/lib/storage';
 import { Activity, ActivityType } from '@/types';
+import { validateActivity } from '@/lib/rules-engine';
+import { refreshStravaTokenIfNeeded } from '@/lib/strava';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,14 +15,45 @@ export async function POST(req: NextRequest) {
     let syncedCount = 0;
 
     for (const user of usersToSync) {
-      if (user.stravaAccessToken) {
+      if (user.stravaAccessToken || user.stravaRefreshToken) {
         try {
-          // Gọi Strava API lấy các activity
-          const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
+          // 1. Kiểm tra và tự động làm mới token nếu sắp hết hạn
+          const tokenRefresh = await refreshStravaTokenIfNeeded(user);
+          if (tokenRefresh && tokenRefresh.accessToken) {
+            if (tokenRefresh.accessToken !== user.stravaAccessToken) {
+              user.stravaAccessToken = tokenRefresh.accessToken;
+              user.stravaRefreshToken = tokenRefresh.refreshToken;
+              user.stravaTokenExpiresAt = tokenRefresh.expiresAt;
+              await saveUserAsync(user);
+            }
+          }
+
+          if (!user.stravaAccessToken) continue;
+
+          // 2. Gọi Strava API lấy các activity
+          let res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
             headers: {
               Authorization: `Bearer ${user.stravaAccessToken}`,
             },
           });
+
+          // Nếu trả về 401 (token hết hạn đột xuất), thử refresh lại lần nữa
+          if (res.status === 401 && user.stravaRefreshToken) {
+            user.stravaTokenExpiresAt = 0; // Buộc refresh
+            const retryToken = await refreshStravaTokenIfNeeded(user);
+            if (retryToken && retryToken.accessToken) {
+              user.stravaAccessToken = retryToken.accessToken;
+              user.stravaRefreshToken = retryToken.refreshToken;
+              user.stravaTokenExpiresAt = retryToken.expiresAt;
+              await saveUserAsync(user);
+
+              res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
+                headers: {
+                  Authorization: `Bearer ${user.stravaAccessToken}`,
+                },
+              });
+            }
+          }
 
           if (res.ok) {
             const activities = await res.json();
@@ -63,6 +96,11 @@ export async function POST(req: NextRequest) {
                 isValid: true,
                 invalidReasons: [],
               };
+
+              // Kiểm duyệt thể lệ giải CNHP
+              const validation = validateActivity(act);
+              act.isValid = validation.isValid;
+              act.invalidReasons = validation.invalidReasons;
 
               await saveActivityAsync(act);
               syncedCount++;

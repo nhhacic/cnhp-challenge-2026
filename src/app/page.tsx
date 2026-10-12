@@ -79,7 +79,15 @@ export default function HomePage() {
       const stravaError = params.get('strava_error');
 
       if (stravaError) {
-        alert('Lỗi kết nối Strava: ' + decodeURIComponent(stravaError));
+        let decoded = decodeURIComponent(stravaError);
+        if (
+          decoded.toLowerCase().includes('maximum number of athletes') ||
+          decoded.toLowerCase().includes('exceeded') ||
+          decoded.toLowerCase().includes('limit')
+        ) {
+          decoded = 'Cổng Strava này đã đầy giới hạn 10 VĐV. Bạn hãy bấm vào biểu tượng Strava trên thanh công cụ và chọn "Cổng 2 (Mở rộng - Anh Phi Long)" để kết nối thành công nhé!';
+        }
+        alert('Thông báo Strava: ' + decoded);
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (stravaStatus === 'success' && userId) {
         const userObj = {
@@ -263,6 +271,7 @@ export default function HomePage() {
         isSyncing={isSyncing}
         connectedUser={connectedUser}
         onLogout={handleLogout}
+        users={users}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

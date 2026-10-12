@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Week } from '@/types';
-import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass, LogOut, CheckCircle2, Smartphone } from 'lucide-react';
+import { Week, User } from '@/types';
+import { Trophy, RefreshCw, Moon, Sun, ShieldCheck, Flame, Compass, LogOut, CheckCircle2, Smartphone, X } from 'lucide-react';
 import InstallAppModal from '@/components/InstallAppModal';
 
 interface HeaderProps {
@@ -17,6 +17,7 @@ interface HeaderProps {
   isSyncing: boolean;
   connectedUser: any;
   onLogout?: () => void;
+  users?: User[];
 }
 
 export default function Header({
@@ -31,22 +32,31 @@ export default function Header({
   isSyncing,
   connectedUser,
   onLogout,
+  users = [],
 }: HeaderProps) {
   const [showStravaModal, setShowStravaModal] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
+  const client1Id = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID || '285643';
+  const client2Id = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID_2 || '286693';
+
+  // Tính số lượng VĐV đã ủy quyền theo từng Cổng
+  const stravaUsers = users.filter((u) => u.stravaAccessToken);
+  const gateway2Count = stravaUsers.filter((u) => u.stravaClientId === client2Id).length;
+  // Các user còn lại (hoặc không gắn client) mặc định thuộc Cổng 1
+  const gateway1Count = stravaUsers.filter((u) => u.stravaClientId !== client2Id).length;
+
+  const handleRedirectOAuth = (clientId: string) => {
+    const redirectUri = window.location.origin + '/api/strava/oauth';
+    const scope = 'read,activity:read_all';
+    window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&approval_prompt=auto&scope=${scope}&state=${clientId}`;
+  };
+
   const handleConnectStrava = () => {
-    // Nếu có Strava Client ID thì chuyển hướng OAuth, nếu không thì thông báo kết nối demo
-    const clientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID;
-    if (clientId) {
-      const redirectUri = window.location.origin + '/api/strava/oauth';
-      const scope = 'read,activity:read_all';
-      window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&approval_prompt=auto&scope=${scope}`;
-    } else {
-      setShowStravaModal(true);
-    }
+    // Mở modal lựa chọn cổng thông minh
+    setShowStravaModal(true);
   };
 
   return (
@@ -197,42 +207,108 @@ export default function Header({
         </div>
       </div>
 
-      {/* Modal hướng dẫn Strava OAuth khi chạy môi trường demo */}
+      {/* Modal Chọn Cổng Kết Nối Strava (Multi-Client OAuth) */}
       {showStravaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#fc5200] flex items-center justify-center text-white">
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
-                </svg>
+        <div 
+          onClick={() => setShowStravaModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#fc5200] flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                    Kết Nối Strava OAuth 2.0
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Chọn cổng ủy quyền để tham gia & tự động đọc bài chạy
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kết Nối Strava OAuth 2.0</h3>
-                <p className="text-xs text-slate-500">Quyền đọc hoạt động: read,activity:read_all</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              <p>
-                Hệ thống hỗ trợ 100% chuẩn xác Strava OAuth 2.0. Để kích hoạt kết nối Strava thực tế khi triển khai online:
-              </p>
-              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono text-xs space-y-1">
-                <p>STRAVA_CLIENT_ID=&lt;your_client_id&gt;</p>
-                <p>STRAVA_CLIENT_SECRET=&lt;your_secret&gt;</p>
-              </div>
-              <p className="text-emerald-600 dark:text-emerald-400 font-medium">
-                ✨ Trên máy local hiện tại: Hệ thống đã nạp sẵn 15 tài khoản mẫu và 51 bài chạy thực tế (Road, Trail, Trekking) để bạn kiểm thử toàn bộ thể lệ ngay!
-              </p>
-            </div>
-
-            <div className="mt-6 flex justify-end space-x-2">
               <button
                 onClick={() => setShowStravaModal(false)}
-                className="px-4 py-2 text-sm font-semibold rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-all"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
-                Đã Hiểu
+                <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Explanation box */}
+            <div className="p-3 rounded-2xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-900/50 text-xs text-orange-900 dark:text-orange-200 leading-relaxed flex items-start gap-2.5">
+              <span className="text-base flex-shrink-0">⚡</span>
+              <div>
+                <strong>Hệ thống Đa Cổng (Multi-Client OAuth):</strong> Mỗi app Strava cá nhân có giới hạn 10 VĐV. CNHP đã kết nối Cổng 2 của anh Phi Long để tiếp nhận thêm thành viên mới mà không lo đầy tải!
+              </div>
+            </div>
+
+            {/* Cổng 2 (Mở Rộng - Anh Phi Long - Khuyên dùng) */}
+            <div className="p-4 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/60 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900 relative shadow-sm hover:shadow-md transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-white shadow-sm flex items-center gap-1">
+                    ⭐ Khuyên Dùng Cho VĐV Mới
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  {gateway2Count}/10 VĐV (Còn {Math.max(0, 10 - gateway2Count)} chỗ)
+                </span>
+              </div>
+              <div className="font-bold text-slate-900 dark:text-white text-sm mb-1">
+                Cổng 2 (Mở Rộng - Anh Phi Long)
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+                Cổng mở rộng mới kích hoạt, còn nhiều chỗ trống. Vận động viên mới hoặc chưa kết nối nên bấm chọn cổng này.
+              </p>
+              <button
+                onClick={() => handleRedirectOAuth(client2Id)}
+                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+              >
+                <span>🚀 Kết Nối Ngay Qua Cổng 2 (Khuyên Dùng)</span>
+              </button>
+            </div>
+
+            {/* Cổng 1 (Chính - Đặng Tùng) */}
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                    Cổng 1 (Đặng Tùng)
+                  </span>
+                </div>
+                <span className={`text-xs font-bold ${gateway1Count >= 10 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {gateway1Count >= 10 ? '10/10 VĐV (Đã Đầy)' : `${gateway1Count}/10 VĐV (Sắp đầy)`}
+                </span>
+              </div>
+              <div className="font-bold text-slate-900 dark:text-white text-sm mb-1">
+                Cổng 1 (Chính - Đặng Tùng)
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                Dành cho các thành viên ban đầu đã từng liên kết thành công với cổng của anh Tùng.
+              </p>
+              <button
+                onClick={() => handleRedirectOAuth(client1Id)}
+                disabled={gateway1Count >= 10}
+                className={`w-full py-2 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
+                  gateway1Count >= 10
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'bg-[#fc5200] hover:bg-[#e04900] text-white active:scale-[0.98]'
+                }`}
+              >
+                <span>{gateway1Count >= 10 ? '⚠️ Cổng 1 Đã Đầy (Hãy Chọn Cổng 2 Ở Trên)' : 'Kết Nối Qua Cổng 1'}</span>
+              </button>
+            </div>
+
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 text-center pt-1">
+              Ứng dụng chỉ xin quyền đọc dữ liệu bài chạy công khai để tự động chấm điểm và xếp hạng giải đấu.
             </div>
           </div>
         </div>
