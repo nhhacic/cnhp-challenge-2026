@@ -10,6 +10,7 @@ import AdminPanel from '@/components/AdminPanel';
 import RunnerDetailModal from '@/components/RunnerDetailModal';
 import ChallengeRules from '@/components/ChallengeRules';
 import InstallAppModal from '@/components/InstallAppModal';
+import StravaOAuthModal from '@/components/StravaOAuthModal';
 import {
   Activity,
   Team,
@@ -45,6 +46,7 @@ export default function HomePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedUser, setConnectedUser] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showStravaModal, setShowStravaModal] = useState(false);
 
   // Khởi tạo chế độ tối và kiểm tra phiên đăng nhập Strava
   useEffect(() => {
@@ -272,6 +274,7 @@ export default function HomePage() {
         connectedUser={connectedUser}
         onLogout={handleLogout}
         users={users}
+        onConnectStrava={() => setShowStravaModal(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -433,6 +436,13 @@ export default function HomePage() {
       <InstallAppModal
         isOpen={showInstallModal}
         onClose={() => setShowInstallModal(false)}
+      />
+
+      {/* Modal Chọn Cổng Đăng Nhập Strava */}
+      <StravaOAuthModal
+        isOpen={showStravaModal}
+        onClose={() => setShowStravaModal(false)}
+        users={users}
       />
 
       {/* Footer */}
