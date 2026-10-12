@@ -97,6 +97,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, user: updated });
     }
 
+    if (action === 'toggle_paid_fee') {
+      const { userId, isPaidFee } = body;
+      if (!userId) {
+        return NextResponse.json({ error: 'Thiếu mã thành viên (userId)' }, { status: 400 });
+      }
+      const data = await loadDataAsync();
+      const user = data.users.find((u) => u.id === userId);
+      if (!user) {
+        return NextResponse.json({ error: 'Không tìm thấy thành viên' }, { status: 404 });
+      }
+      user.isPaidFee = typeof isPaidFee === 'boolean' ? isPaidFee : !user.isPaidFee;
+      await saveUserAsync(user);
+      return NextResponse.json({ success: true, user });
+    }
+
     if (action === 'create_user') {
       const { name, gender, teamId, isPaidFee } = body;
       if (!name || !name.trim()) {

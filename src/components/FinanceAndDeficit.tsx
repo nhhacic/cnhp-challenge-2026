@@ -17,7 +17,12 @@ import {
   Copy, 
   Check, 
   ExternalLink, 
-  X 
+  X,
+  CreditCard,
+  Search,
+  Users,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 interface FinanceAndDeficitProps {
@@ -28,6 +33,8 @@ interface FinanceAndDeficitProps {
   selectedWeek: Week | null;
   userWeeklyStatsMap: Record<string, UserWeeklyStat[]>;
   rankedTeamsByWeek: Record<number, TeamWeeklyStat[]>;
+  isAdmin?: boolean;
+  onRefreshData?: () => void;
 }
 
 export default function FinanceAndDeficit({
@@ -38,11 +45,19 @@ export default function FinanceAndDeficit({
   selectedWeek,
   userWeeklyStatsMap,
   rankedTeamsByWeek,
+  isAdmin = false,
+  onRefreshData,
 }: FinanceAndDeficitProps) {
   const exportCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPaymentUser, setSelectedPaymentUser] = useState<User | null>(null);
   const [selectedPaymentAmount, setSelectedPaymentAmount] = useState<number>(0);
+  const [paymentType, setPaymentType] = useState<'PENALTY' | 'ENTRY_FEE'>('PENALTY');
+  const [useVietQr, setUseVietQr] = useState<boolean>(true);
+  const [feeFilter, setFeeFilter] = useState<'ALL' | 'UNPAID' | 'PAID'>('ALL');
+  const [feeSearchText, setFeeSearchText] = useState<string>('');
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [feeStatusMsg, setFeeStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isQrZoomOpen, setIsQrZoomOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<'stk' | 'syntax' | null>(null);
   const teamMap = new Map(teams.map((t) => [t.id, t]));
@@ -88,6 +103,56 @@ export default function FinanceAndDeficit({
     };
   }).filter((item) => item.stat && item.stat.totalPenaltyAmount > 0);
 
+  // Thống kê Phí Tham Dự 200.000đ
+  const paidUsers = users.filter((u) => u.isPaidFee);
+  const unpaidUsers = users.filter((u) => !u.isPaidFee);
+  const totalCollectedFee = paidUsers.length * 200000;
+  const paymentRatePercent = users.length > 0 ? Math.round((paidUsers.length / users.length) * 100) : 0;
+
+  const filteredFeeUsers = users.filter((u) => {
+    if (feeFilter === 'UNPAID' && u.isPaidFee) return false;
+    if (feeFilter === 'PAID' && !u.isPaidFee) return false;
+    if (feeSearchText.trim()) {
+      return u.name.toLowerCase().includes(feeSearchText.toLowerCase().trim());
+    }
+    return true;
+  });
+
+  // Xử lý bật/tắt trạng thái nộp phí tham dự 200k
+  const handleTogglePaidFee = async (user: User, targetPaidStatus: boolean) => {
+    setUpdatingUserId(user.id);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_paid_fee',
+          userId: user.id,
+          isPaidFee: targetPaidStatus,
+        }),
+      });
+      const resJson = await res.json();
+      if (res.ok) {
+        setFeeStatusMsg({
+          type: 'success',
+          text: `Đã cập nhật: ${user.name} ${targetPaidStatus ? 'đã nộp phí 200.000đ 🎉' : 'đã chuyển về trạng thái chưa nộp phí'}!`,
+        });
+        onRefreshData?.();
+      } else {
+        setFeeStatusMsg({
+          type: 'error',
+          text: resJson.error || 'Không thể cập nhật trạng thái nộp phí',
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeeStatusMsg({ type: 'error', text: 'Lỗi kết nối khi cập nhật trạng thái phí' });
+    } finally {
+      setUpdatingUserId(null);
+      setTimeout(() => setFeeStatusMsg(null), 4000);
+    }
+  };
+
   // Xử lý xuất ảnh PNG cho Zalo
   const handleExportZaloCard = async () => {
     if (!exportCardRef.current) return;
@@ -118,11 +183,24 @@ export default function FinanceAndDeficit({
   const handleSelectRunnerForPayment = (user: User, amount: number) => {
     setSelectedPaymentUser(user);
     setSelectedPaymentAmount(amount);
+    setPaymentType('PENALTY');
+  };
+
+  const handleSelectRunnerForEntryFee = (user: User) => {
+    setSelectedPaymentUser(user);
+    setSelectedPaymentAmount(200000);
+    setPaymentType('ENTRY_FEE');
   };
 
   const paymentSyntax = selectedPaymentUser
-    ? `CNHP ${selectedPaymentUser.name.replace(/\s+/g, ' ')} Tuan ${currentWeekNumber}`
+    ? paymentType === 'ENTRY_FEE'
+      ? `CNHP PHI ${selectedPaymentUser.name.replace(/\s+/g, ' ')}`
+      : `CNHP ${selectedPaymentUser.name.replace(/\s+/g, ' ')} Tuan ${currentWeekNumber}`
+    : paymentType === 'ENTRY_FEE'
+    ? `CNHP PHI [Ten VDV]`
     : `CNHP [Ten VDV] Tuan ${currentWeekNumber}`;
+
+  const vietQrUrl = `https://img.vietqr.io/image/970407-19030671988989-compact2.png?amount=${selectedPaymentAmount > 0 ? selectedPaymentAmount : 200000}&addInfo=${encodeURIComponent(paymentSyntax)}&accountName=TRINH%20LONG`;
 
   return (
     <div className="space-y-8">
@@ -159,7 +237,9 @@ export default function FinanceAndDeficit({
             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
               +{formatCurrency(financialOverview.totalFeeCollected)}
             </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Từ các thành viên tham gia challenge</span>
+            <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold block mt-1">
+              {paidUsers.length}/{users.length} VĐV đã nộp ({paymentRatePercent}%)
+            </span>
           </div>
 
           {/* Card 2: Quỹ phạt đã thu */}
@@ -194,6 +274,344 @@ export default function FinanceAndDeficit({
             </span>
             <span className="text-[11px] text-emerald-700/80 block mt-1">Dành cho thưởng chung cuộc & gala</span>
           </div>
+        </div>
+      </div>
+
+      {/* 2. THEO DÕI & NỘP PHÍ THAM DỰ 200.000Đ */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Theo Dõi & Thu Phí Tham Dự Challenge</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-extrabold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    {paidUsers.length}/{users.length} Đã Nộp ({paymentRatePercent}%)
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Mức phí: <strong>200.000đ/người</strong> • Hoàn trả 100% làm quỹ thưởng chung cuộc & liên hoan Gala CNHP
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              if (users.length > 0) {
+                const target = unpaidUsers[0] || users[0];
+                handleSelectRunnerForEntryFee(target);
+              }
+            }}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+          >
+            <QrCode className="w-4 h-4" />
+            <span>Mở Mã QR Nộp Phí 200k</span>
+          </button>
+        </div>
+
+        {/* Thanh Tiến Độ Thu Phí Toàn Giải */}
+        <div className="space-y-2 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <span>Đã thu được:</span>
+              <strong className="text-blue-600 dark:text-blue-400 text-sm">
+                {formatCurrency(totalCollectedFee)}
+              </strong>
+              <span className="text-slate-400">/ {formatCurrency(users.length * 200000)}</span>
+            </span>
+            <span className="font-bold text-slate-600 dark:text-slate-400">
+              Chưa nộp: <span className="text-rose-500 font-extrabold">{unpaidUsers.length} VĐV</span> ({formatCurrency(unpaidUsers.length * 200000)})
+            </span>
+          </div>
+
+          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-blue-500 via-teal-400 to-emerald-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${paymentRatePercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Thông báo cập nhật realtime */}
+        {feeStatusMsg && (
+          <div
+            className={`p-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all animate-fadeIn ${
+              feeStatusMsg.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              <span>{feeStatusMsg.text}</span>
+            </span>
+            <button onClick={() => setFeeStatusMsg(null)} className="p-1 hover:opacity-70">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Thanh Bộ Lọc & Tìm Kiếm */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
+            <button
+              onClick={() => setFeeFilter('ALL')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                feeFilter === 'ALL'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Tất cả ({users.length})
+            </button>
+            <button
+              onClick={() => setFeeFilter('UNPAID')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                feeFilter === 'UNPAID'
+                  ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-rose-600'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span>Chưa nộp ({unpaidUsers.length})</span>
+            </button>
+            <button
+              onClick={() => setFeeFilter('PAID')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                feeFilter === 'PAID'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Đã nộp ({paidUsers.length})</span>
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={feeSearchText}
+              onChange={(e) => setFeeSearchText(e.target.value)}
+              placeholder="Tìm tên vận động viên..."
+              className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-56"
+            />
+          </div>
+        </div>
+
+        {/* Danh Sách VĐV (Mobile Card View) */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredFeeUsers.map((u) => {
+            const team = teamMap.get(u.teamId);
+            const isSelected = selectedPaymentUser?.id === u.id && paymentType === 'ENTRY_FEE';
+            const isUpdating = updatingUserId === u.id;
+
+            return (
+              <div
+                key={u.id}
+                className={`p-3.5 space-y-2.5 rounded-2xl transition-all ${
+                  isSelected ? 'bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={u.avatar}
+                      alt={u.name}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm flex items-center gap-1">
+                        <span>{u.name}</span>
+                        {u.isCaptain && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                            Captain
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="text-[10px] font-semibold"
+                        style={{ color: team?.color }}
+                      >
+                        {team?.name || 'Chưa chia đội'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    {u.isPaidFee ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Đã nộp 200k
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                        ⏳ Chưa nộp
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  {!u.isPaidFee && (
+                    <button
+                      onClick={() => handleSelectRunnerForEntryFee(u)}
+                      className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 active:scale-95 transition-all"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Quét QR 200k</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
+                    disabled={isUpdating}
+                    className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
+                      u.isPaidFee
+                        ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    }`}
+                  >
+                    {isUpdating ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : u.isPaidFee ? (
+                      <span>Hủy xác nhận</span>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Xác nhận đã thu 200k</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Danh Sách VĐV (Desktop Table) */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+              <tr>
+                <th className="py-3 px-4">Vận Động Viên</th>
+                <th className="py-3 px-4">Đội Đua</th>
+                <th className="py-3 px-4 text-center">Mức Phí</th>
+                <th className="py-3 px-4 text-center">Trạng Thái</th>
+                <th className="py-3 px-4 text-center">Mã QR Nộp Phí</th>
+                <th className="py-3 px-4 text-center">Hành Động Cập Nhật</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredFeeUsers.map((u) => {
+                const team = teamMap.get(u.teamId);
+                const isSelected = selectedPaymentUser?.id === u.id && paymentType === 'ENTRY_FEE';
+                const isUpdating = updatingUserId === u.id;
+
+                return (
+                  <tr
+                    key={u.id}
+                    className={`transition-colors ${
+                      isSelected ? 'bg-blue-50/60 dark:bg-blue-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={u.avatar}
+                          alt={u.name}
+                          className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <span>{u.name}</span>
+                            {u.isCaptain && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                                Captain
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {u.gender === 'MALE' ? 'Nam' : 'Nữ'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-lg inline-flex items-center gap-1"
+                        style={{
+                          backgroundColor: `${team?.color || '#94a3b8'}15`,
+                          color: team?.color || '#94a3b8',
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: team?.color || '#94a3b8' }} />
+                        <span>{team?.name || 'Chưa chia'}</span>
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 text-center font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      200.000 đ
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      {u.isPaidFee ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Đã Nộp Phí
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                          ⏳ Chưa Nộp
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => handleSelectRunnerForEntryFee(u)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-xs font-bold active:scale-95 transition-all"
+                        title="Điền cú pháp và tạo mã QR 200k cho thành viên này"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Mã QR 200k</span>
+                      </button>
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
+                        disabled={isUpdating}
+                        className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
+                          u.isPaidFee
+                            ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                        title={u.isPaidFee ? 'Đánh dấu lại thành viên này chưa nộp phí' : 'Xác nhận thành viên này đã nộp phí 200.000đ'}
+                      >
+                        {isUpdating ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : u.isPaidFee ? (
+                          <span>Hủy xác nhận</span>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Xác nhận đã thu</span>
+                          </>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -400,13 +818,73 @@ export default function FinanceAndDeficit({
                     Tài Khoản Thủ Quỹ
                   </h3>
                   <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-                    Quét mã để nộp tiền phạt CNHP
+                    {paymentType === 'ENTRY_FEE' ? 'Quét mã nộp phí tham dự 200.000đ' : 'Quét mã nộp tiền phạt CNHP'}
                   </p>
                 </div>
               </div>
               <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-black uppercase">
                 Techcombank
               </span>
+            </div>
+
+            {/* Chọn loại khoản nộp: Phí 200k vs Tiền Phạt */}
+            <div className="flex items-center gap-1.5 p-1 bg-amber-100/70 dark:bg-amber-950/60 rounded-xl mb-3 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentType('ENTRY_FEE');
+                  setSelectedPaymentAmount(200000);
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-center transition-all ${
+                  paymentType === 'ENTRY_FEE'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                💳 Phí Tham Dự 200k
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentType('PENALTY');
+                  if (selectedPaymentAmount === 200000) {
+                    setSelectedPaymentAmount(0);
+                  }
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-center transition-all ${
+                  paymentType === 'PENALTY'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                ⚠️ Tiền Phạt Tuần
+              </button>
+            </div>
+
+            {/* Chuyển đổi mã VietQR tự động điền tiền vs QR gốc */}
+            <div className="flex items-center justify-center gap-1.5 mb-1.5 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setUseVietQr(true)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  useVietQr
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                ⚡ VietQR (Điền sẵn tiền)
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseVietQr(false)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  !useVietQr
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🏦 Ảnh QR Gốc
+              </button>
             </div>
 
             {/* Ảnh Mã QR Thủ Quỹ */}
@@ -417,7 +895,7 @@ export default function FinanceAndDeficit({
                 title="Bấm để xem ảnh phóng to"
               >
                 <img
-                  src="/thu_quy_qr.jpg"
+                  src={useVietQr ? vietQrUrl : "/thu_quy_qr.jpg"}
                   alt="Mã QR Chuyển Tiền Thủ Quỹ Trịnh Long"
                   className="w-44 sm:w-48 h-auto object-contain rounded-xl transition-transform group-hover:scale-[1.02]"
                 />
@@ -427,7 +905,7 @@ export default function FinanceAndDeficit({
                 </div>
               </div>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1 font-medium">
-                💡 Chạm vào ảnh QR để xem kích thước lớn
+                💡 {useVietQr ? 'Quét mã VietQR trên app ngân hàng sẽ tự điền STK, số tiền & cú pháp' : 'Chạm vào ảnh QR để xem kích thước lớn'}
               </span>
             </div>
 
@@ -797,7 +1275,7 @@ export default function FinanceAndDeficit({
 
             <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-inner flex justify-center">
               <img
-                src="/thu_quy_qr.jpg"
+                src={useVietQr ? vietQrUrl : "/thu_quy_qr.jpg"}
                 alt="QR Code Thủ Quỹ TRINH LONG"
                 className="w-full max-h-[460px] object-contain rounded-xl"
               />
@@ -814,7 +1292,9 @@ export default function FinanceAndDeficit({
                 </button>
               </div>
               <p className="text-[11px] text-slate-400">
-                Mở app ngân hàng quét mã để thanh toán tiền nộp phạt
+                {paymentType === 'ENTRY_FEE'
+                  ? 'Mở app ngân hàng quét mã để thanh toán phí tham dự 200.000đ'
+                  : 'Mở app ngân hàng quét mã để thanh toán tiền nộp phạt'}
               </p>
             </div>
           </div>

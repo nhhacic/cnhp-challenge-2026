@@ -389,6 +389,8 @@ export default function HomePage() {
             selectedWeek={currentWeek}
             userWeeklyStatsMap={userWeeklyStats}
             rankedTeamsByWeek={rankedTeamsByWeek}
+            isAdmin={isAdmin}
+            onRefreshData={() => fetchData(true)}
           />
         )}
 
