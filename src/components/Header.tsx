@@ -207,108 +207,84 @@ export default function Header({
         </div>
       </div>
 
-      {/* Modal Chọn Cổng Kết Nối Strava (Multi-Client OAuth) */}
+      {/* Modal Chọn Cổng Kết Nối Strava */}
       {showStravaModal && (
         <div 
           onClick={() => setShowStravaModal(false)}
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm p-4 sm:p-6 flex items-center justify-center animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 pt-24 sm:pt-32 animate-in fade-in duration-150 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-3.5 my-auto max-h-[92vh] flex flex-col"
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-150"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-[#fc5200] flex items-center justify-center text-white shadow-md shadow-orange-500/30 flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-[#fc5200] flex items-center justify-center text-white shadow-sm flex-shrink-0">
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
                     Kết Nối Strava
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Chọn cổng để tham gia & tự động tính điểm
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Chọn cổng đăng nhập vào giải
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowStravaModal(false)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                title="Đóng"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Scrollable content */}
-            <div className="space-y-3 overflow-y-auto flex-1 pr-0.5">
-              {/* Explanation note */}
-              <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 text-[11px] text-orange-900 dark:text-orange-200 leading-relaxed flex items-start gap-2">
-                <span className="text-sm flex-shrink-0">⚡</span>
-                <div>
-                  <strong>Hệ thống 2 Cổng Strava:</strong> Tiếp nhận tối đa 20 VĐV (10 VĐV/cổng). Thành viên mới vui lòng chọn <strong>Cổng 2</strong> để không bị chạm trần!
-                </div>
-              </div>
-
-              {/* Cổng 2 (Mở Rộng - Anh Phi Long - Khuyên dùng) */}
-              <div className="p-3.5 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/60 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900 relative shadow-sm">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-white shadow-sm">
-                    ⭐ Khuyên Dùng Cho VĐV Mới
+            {/* Danh sách 2 Cổng Đăng Nhập */}
+            <div className="space-y-3">
+              {/* Cổng 2 (Anh Phi Long - Khuyên dùng) */}
+              <button
+                onClick={() => handleRedirectOAuth(client2Id)}
+                className="w-full p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 border-2 border-emerald-500/80 text-left transition-all active:scale-[0.98] shadow-sm flex flex-col gap-1 cursor-pointer"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-extrabold text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-1.5">
+                    🚀 Cổng 2 (Anh Phi Long)
                   </span>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                    {gateway2Count}/10 VĐV (Còn {Math.max(0, 10 - gateway2Count)} chỗ)
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white shadow-sm">
+                    Khuyên Dùng
                   </span>
                 </div>
-                <div className="font-bold text-slate-900 dark:text-white text-sm">
-                  Cổng 2 (Mở Rộng - Anh Phi Long)
+                <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                  Còn trống {Math.max(0, 10 - gateway2Count)}/10 chỗ • Dành cho thành viên mới
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 my-2">
-                  Cổng mở rộng mới kích hoạt, còn nhiều chỗ trống. Vận động viên mới nên chọn cổng này.
-                </p>
-                <button
-                  onClick={() => handleRedirectOAuth(client2Id)}
-                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <span>🚀 Kết Nối Ngay Qua Cổng 2 (Khuyên Dùng)</span>
-                </button>
-              </div>
+              </button>
 
-              {/* Cổng 1 (Chính - Đặng Tùng) */}
-              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+              {/* Cổng 1 (Đặng Tùng) */}
+              <button
+                onClick={() => handleRedirectOAuth(client1Id)}
+                disabled={gateway1Count >= 10}
+                className={`w-full p-4 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                  gateway1Count >= 10
+                    ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 cursor-not-allowed'
+                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 active:scale-[0.98] cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
                     Cổng 1 (Đặng Tùng)
                   </span>
-                  <span className={`text-xs font-bold ${gateway1Count >= 10 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                    {gateway1Count >= 10 ? '10/10 VĐV (Đã Đầy)' : `${gateway1Count}/10 VĐV (Sắp đầy)`}
+                  <span className={`text-xs font-semibold ${gateway1Count >= 10 ? 'text-rose-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {gateway1Count >= 10 ? 'Đã đủ 10/10' : `${gateway1Count}/10 VĐV`}
                   </span>
                 </div>
-                <div className="font-bold text-slate-900 dark:text-white text-sm">
-                  Cổng 1 (Chính - Đặng Tùng)
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {gateway1Count >= 10 ? 'Đã đủ số lượng VĐV' : 'Dành cho thành viên ban đầu'}
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 my-2">
-                  Dành cho các thành viên ban đầu đã từng liên kết thành công với cổng của anh Tùng.
-                </p>
-                <button
-                  onClick={() => handleRedirectOAuth(client1Id)}
-                  disabled={gateway1Count >= 10}
-                  className={`w-full py-2 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
-                    gateway1Count >= 10
-                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                      : 'bg-[#fc5200] hover:bg-[#e04900] text-white active:scale-[0.98]'
-                  }`}
-                >
-                  <span>{gateway1Count >= 10 ? '⚠️ Cổng 1 Đã Đầy (Hãy Chọn Cổng 2 Ở Trên)' : 'Kết Nối Qua Cổng 1'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center pt-1 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
-              Ứng dụng chỉ đọc dữ liệu bài chạy công khai để tự động chấm điểm giải.
+              </button>
             </div>
           </div>
         </div>
