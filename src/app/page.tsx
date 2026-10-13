@@ -267,6 +267,39 @@ export default function HomePage() {
     .filter((a) => a.isValid && new Date(a.startDate).getTime() >= CHALLENGE_START_TIME)
     .reduce((sum, a) => sum + a.effectiveKm, 0);
 
+  // Xác định thành viên tham gia thử thách đang đăng nhập
+  const currentParticipant = users.find((u) => {
+    if (!connectedUser) return false;
+    if (connectedUser.id && u.id === connectedUser.id) return true;
+    if (connectedUser.id && u.stravaId === String(connectedUser.id)) return true;
+    if (connectedUser.id && u.id === `user-${connectedUser.id}`) return true;
+    if (connectedUser.name && u.name.toLowerCase().trim() === connectedUser.name.toLowerCase().trim()) return true;
+    return false;
+  }) || null;
+
+  const isChallengeMember = Boolean(currentParticipant || isAdmin);
+
+  const handleOpenLeaveModal = (targetUserId?: string, targetWeekNumber?: number) => {
+    if (!isChallengeMember) {
+      if (!connectedUser) {
+        alert(
+          '🔒 Quyền truy cập bị giới hạn:\nChỉ thành viên chính thức tham gia thử thách CNHP Thu Đông 2026 mới có quyền gửi đơn xin tạm nghỉ.\n\nVui lòng bấm vào nút "Strava" để đăng nhập xác thực tài khoản VĐV của bạn!'
+        );
+        setShowStravaModal(true);
+      } else {
+        alert(
+          `🔒 Quyền truy cập bị giới hạn:\nTài khoản Strava "${connectedUser.name}" không nằm trong danh sách thành viên tham gia thử thách CNHP Thu Đông 2026.\n\nChỉ các VĐV chính thức mới có quyền gửi đơn xin nghỉ tuần. Vui lòng liên hệ Ban Tổ Chức nếu bạn có trong danh sách thi đấu!`
+        );
+      }
+      return;
+    }
+
+    const effectiveUserId = !isAdmin && currentParticipant ? currentParticipant.id : (targetUserId || currentParticipant?.id || users[0]?.id);
+    setLeaveDefaultUserId(effectiveUserId);
+    setLeaveDefaultWeekNumber(targetWeekNumber || selectedWeekNumber || 1);
+    setShowLeaveModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
       {/* Header Điều Hướng */}
@@ -284,11 +317,8 @@ export default function HomePage() {
         onLogout={handleLogout}
         users={users}
         onConnectStrava={() => setShowStravaModal(true)}
-        onOpenLeaveModal={() => {
-          setLeaveDefaultUserId(connectedUser?.id);
-          setLeaveDefaultWeekNumber(selectedWeekNumber || 1);
-          setShowLeaveModal(true);
-        }}
+        onOpenLeaveModal={() => handleOpenLeaveModal()}
+        isChallengeMember={isChallengeMember}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -300,11 +330,7 @@ export default function HomePage() {
           financialOverview={financialOverview}
           onViewRules={() => setActiveTab('RULES')}
           onInstallApp={() => setShowInstallModal(true)}
-          onOpenLeaveModal={() => {
-            setLeaveDefaultUserId(connectedUser?.id);
-            setLeaveDefaultWeekNumber(selectedWeekNumber || 1);
-            setShowLeaveModal(true);
-          }}
+          onOpenLeaveModal={() => handleOpenLeaveModal()}
         />
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
@@ -455,11 +481,8 @@ export default function HomePage() {
           onUpdateActivity={handleUpdateActivity}
           onDeleteActivity={handleDeleteActivity}
           onDeleteUser={handleDeleteUser}
-          onRequestLeave={(u, weekNum) => {
-            setLeaveDefaultUserId(u.id);
-            setLeaveDefaultWeekNumber(weekNum || selectedWeekNumber || 1);
-            setShowLeaveModal(true);
-          }}
+          onRequestLeave={(u, weekNum) => handleOpenLeaveModal(u.id, weekNum)}
+          currentParticipantUser={currentParticipant}
         />
       )}
 
@@ -472,6 +495,8 @@ export default function HomePage() {
         leaveRequests={data.leaveRequests || []}
         defaultUserId={leaveDefaultUserId}
         defaultWeekNumber={leaveDefaultWeekNumber}
+        currentUser={currentParticipant}
+        isAdmin={isAdmin}
         onRefreshData={() => fetchData(true)}
       />
 

@@ -33,6 +33,7 @@ interface RunnerDetailModalProps {
   onDeleteActivity: (activityId: string) => void;
   onDeleteUser?: (userId: string) => void;
   onRequestLeave?: (user: User, weekNumber?: number) => void;
+  currentParticipantUser?: User | null;
 }
 
 export default function RunnerDetailModal({
@@ -48,6 +49,7 @@ export default function RunnerDetailModal({
   onDeleteActivity,
   onDeleteUser,
   onRequestLeave,
+  currentParticipantUser,
 }: RunnerDetailModalProps) {
   const [editingActId, setEditingActId] = useState<string | null>(null);
   const [lagKmInput, setLagKmInput] = useState<string>('');
@@ -142,7 +144,7 @@ export default function RunnerDetailModal({
           </div>
 
           <div className="flex items-center space-x-2">
-            {onRequestLeave && (
+            {onRequestLeave && (isAdmin || (currentParticipantUser && currentParticipantUser.id === user.id)) && (
               <button
                 onClick={() => onRequestLeave(user, selectedWeek?.weekNumber)}
                 className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800 transition-all active:scale-95"

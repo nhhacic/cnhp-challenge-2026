@@ -12,6 +12,8 @@ interface LeaveRequestModalProps {
   leaveRequests?: LeaveRequest[];
   defaultUserId?: string;
   defaultWeekNumber?: number;
+  currentUser?: User | null;
+  isAdmin?: boolean;
   onRefreshData: () => void;
 }
 
@@ -23,10 +25,14 @@ export default function LeaveRequestModal({
   leaveRequests = [],
   defaultUserId,
   defaultWeekNumber,
+  currentUser,
+  isAdmin = false,
   onRefreshData,
 }: LeaveRequestModalProps) {
+  const isChallengeMember = Boolean(currentUser || isAdmin);
+
   const [selectedUserId, setSelectedUserId] = useState<string>(
-    defaultUserId || (users.length > 0 ? users[0].id : '')
+    (!isAdmin && currentUser) ? currentUser.id : (defaultUserId || (users.length > 0 ? users[0].id : ''))
   );
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number>(
     defaultWeekNumber || (weeks.length > 0 ? weeks[0].weekNumber : 1)
@@ -36,13 +42,23 @@ export default function LeaveRequestModal({
   const [activeTab, setActiveTab] = useState<'NEW_REQUEST' | 'LIST'>('NEW_REQUEST');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  React.useEffect(() => {
+    if (!isAdmin && currentUser) {
+      setSelectedUserId(currentUser.id);
+    } else if (defaultUserId) {
+      setSelectedUserId(defaultUserId);
+    }
+  }, [currentUser, defaultUserId, isAdmin, isOpen]);
+
   if (!isOpen) return null;
 
-  const selectedUser = users.find((u) => u.id === selectedUserId);
+  const targetUserId = (!isAdmin && currentUser) ? currentUser.id : selectedUserId;
+  const selectedUser = users.find((u) => u.id === targetUserId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUserId) {
+    const effectiveUserId = (!isAdmin && currentUser) ? currentUser.id : selectedUserId;
+    if (!effectiveUserId) {
       setMessage({ type: 'error', text: 'Vui lòng chọn thành viên xin tạm nghỉ' });
       return;
     }
@@ -60,7 +76,7 @@ export default function LeaveRequestModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'submit_leave_request',
-          userId: selectedUserId,
+          userId: effectiveUserId,
           weekNumber: Number(selectedWeekNumber),
           reason: reason.trim(),
           status: 'PENDING',
@@ -218,29 +234,53 @@ export default function LeaveRequestModal({
                   <UserIcon className="w-3.5 h-3.5 text-amber-600" />
                   <span>Vận Động Viên Xin Tạm Nghỉ:</span>
                 </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  required
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.gender === 'MALE' ? 'Nam' : 'Nữ'})
-                    </option>
-                  ))}
-                </select>
-                {selectedUser && (
-                  <div className="mt-2 flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+                {!isAdmin && currentUser ? (
+                  <div className="flex items-center space-x-3 p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80">
                     <img
-                      src={selectedUser.avatar}
-                      alt={selectedUser.name}
-                      className="w-6 h-6 rounded-full object-cover border border-slate-300"
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-sm flex-shrink-0"
                     />
-                    <span>
-                      VĐV: <b>{selectedUser.name}</b>
-                    </span>
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>{currentUser.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-700">
+                          ✓ Thành viên thử thách
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {currentUser.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'}
+                        {currentUser.stravaId && <span> • Strava ID: {currentUser.stravaId}</span>}
+                      </div>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      required
+                    >
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.gender === 'MALE' ? 'Nam' : 'Nữ'})
+                        </option>
+                      ))}
+                    </select>
+                    {selectedUser && (
+                      <div className="mt-2 flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+                        <img
+                          src={selectedUser.avatar}
+                          alt={selectedUser.name}
+                          className="w-6 h-6 rounded-full object-cover border border-slate-300"
+                        />
+                        <span>
+                          VĐV: <b>{selectedUser.name}</b>
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

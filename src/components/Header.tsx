@@ -20,6 +20,7 @@ interface HeaderProps {
   users?: User[];
   onConnectStrava?: () => void;
   onOpenLeaveModal?: () => void;
+  isChallengeMember?: boolean;
 }
 
 export default function Header({
@@ -37,6 +38,7 @@ export default function Header({
   users = [],
   onConnectStrava,
   onOpenLeaveModal,
+  isChallengeMember = false,
 }: HeaderProps) {
   const [showInstallModal, setShowInstallModal] = useState(false);
 
@@ -145,11 +147,24 @@ export default function Header({
             {onOpenLeaveModal && (
               <button
                 onClick={onOpenLeaveModal}
-                title="Xin tạm nghỉ chạy tuần vì lý do bất khả kháng (chấn thương, ốm đau...)"
-                className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl transition-all active:scale-95"
+                title={
+                  isChallengeMember
+                    ? 'Xin tạm nghỉ chạy tuần vì lý do bất khả kháng (chấn thương, ốm đau...)'
+                    : 'Chỉ thành viên tham gia thử thách được ấn xin nghỉ tuần'
+                }
+                className={`flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold rounded-xl transition-all active:scale-95 border ${
+                  isChallengeMember
+                    ? 'text-amber-800 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
+                }`}
               >
                 <span className="text-sm">🌴</span>
                 <span className="text-xs font-bold">Xin Nghỉ</span>
+                {!isChallengeMember && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 hidden xl:inline font-normal">
+                    (VĐV)
+                  </span>
+                )}
               </button>
             )}
 
