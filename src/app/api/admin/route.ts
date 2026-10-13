@@ -98,10 +98,28 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'toggle_paid_fee') {
-      const { userId, isPaidFee } = body;
+      const { userId, isPaidFee, callerStravaId, callerUserId, treasurerPin } = body;
       if (!userId) {
         return NextResponse.json({ error: 'Thiếu mã thành viên (userId)' }, { status: 400 });
       }
+
+      // Xác thực quyền: Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) mới có quyền xác nhận thu phí
+      const TREASURER_STRAVA_ID = '138319814';
+      const TREASURER_USER_ID = 'user-138319814';
+      const VALID_PINS = ['138319814', 'cnhp2026', '190306'];
+
+      const isAuthorized =
+        callerStravaId === TREASURER_STRAVA_ID ||
+        callerUserId === TREASURER_USER_ID ||
+        (treasurerPin && VALID_PINS.includes(String(treasurerPin).trim()));
+
+      if (!isAuthorized) {
+        return NextResponse.json(
+          { error: 'Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) mới có quyền xác nhận thu phí tham dự!' },
+          { status: 403 }
+        );
+      }
+
       const data = await loadDataAsync();
       const user = data.users.find((u) => u.id === userId);
       if (!user) {

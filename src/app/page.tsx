@@ -405,6 +405,8 @@ export default function HomePage() {
             userWeeklyStatsMap={userWeeklyStats}
             rankedTeamsByWeek={rankedTeamsByWeek}
             isAdmin={isAdmin}
+            connectedUser={connectedUser}
+            onConnectStrava={() => setShowStravaModal(true)}
             onRefreshData={() => fetchData(true)}
           />
         )}

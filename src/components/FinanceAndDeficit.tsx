@@ -22,7 +22,8 @@ import {
   Search,
   Users,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Lock,
 } from 'lucide-react';
 
 interface FinanceAndDeficitProps {
@@ -35,6 +36,8 @@ interface FinanceAndDeficitProps {
   rankedTeamsByWeek: Record<number, TeamWeeklyStat[]>;
   isAdmin?: boolean;
   onRefreshData?: () => void;
+  connectedUser?: any;
+  onConnectStrava?: () => void;
 }
 
 export default function FinanceAndDeficit({
@@ -47,7 +50,29 @@ export default function FinanceAndDeficit({
   rankedTeamsByWeek,
   isAdmin = false,
   onRefreshData,
+  connectedUser,
+  onConnectStrava,
 }: FinanceAndDeficitProps) {
+  const TREASURER_STRAVA_ID = '138319814';
+  const TREASURER_USER_ID = 'user-138319814';
+
+  const [showTreasurerAuthModal, setShowTreasurerAuthModal] = useState(false);
+  const [treasurerPinInput, setTreasurerPinInput] = useState('');
+  const [treasurerPinError, setTreasurerPinError] = useState('');
+  const [isPinAuthenticated, setIsPinAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('cnhp_treasurer_pin_auth') === 'true';
+    }
+    return false;
+  });
+
+  // Kiểm tra quyền Thủ quỹ Long Trịnh (Strava ID: 138319814)
+  const isConnectedAsTreasurer =
+    connectedUser?.stravaId === TREASURER_STRAVA_ID ||
+    connectedUser?.id === TREASURER_USER_ID ||
+    users.find((u) => u.id === connectedUser?.id)?.stravaId === TREASURER_STRAVA_ID;
+
+  const isTreasurer = isConnectedAsTreasurer || isPinAuthenticated;
   const exportCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPaymentUser, setSelectedPaymentUser] = useState<User | null>(null);
@@ -118,8 +143,47 @@ export default function FinanceAndDeficit({
     return true;
   });
 
-  // Xử lý bật/tắt trạng thái nộp phí tham dự 200k
+  // Xử lý xác thực mã PIN của Thủ quỹ
+  const handleVerifyTreasurerPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pin = treasurerPinInput.trim();
+    if (pin === '138319814' || pin === 'cnhp2026' || pin === '190306') {
+      setIsPinAuthenticated(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cnhp_treasurer_pin_auth', 'true');
+      }
+      setShowTreasurerAuthModal(false);
+      setTreasurerPinInput('');
+      setTreasurerPinError('');
+      setFeeStatusMsg({
+        type: 'success',
+        text: 'Đã xác thực thành công quyền Thủ quỹ Long Trịnh (Strava ID: 138319814)!',
+      });
+      setTimeout(() => setFeeStatusMsg(null), 3500);
+    } else {
+      setTreasurerPinError('Mã PIN không đúng. Vui lòng thử lại!');
+    }
+  };
+
+  const handleLogoutTreasurerPin = () => {
+    setIsPinAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('cnhp_treasurer_pin_auth');
+    }
+    setFeeStatusMsg({
+      type: 'success',
+      text: 'Đã thoát phiên làm việc của Thủ quỹ.',
+    });
+    setTimeout(() => setFeeStatusMsg(null), 3000);
+  };
+
+  // Xử lý bật/tắt trạng thái nộp phí tham dự 200k (Chỉ Thủ quỹ Long Trịnh được phép)
   const handleTogglePaidFee = async (user: User, targetPaidStatus: boolean) => {
+    if (!isTreasurer) {
+      setShowTreasurerAuthModal(true);
+      return;
+    }
+
     setUpdatingUserId(user.id);
     try {
       const res = await fetch('/api/admin', {
@@ -129,6 +193,9 @@ export default function FinanceAndDeficit({
           action: 'toggle_paid_fee',
           userId: user.id,
           isPaidFee: targetPaidStatus,
+          callerStravaId: connectedUser?.stravaId,
+          callerUserId: connectedUser?.id,
+          treasurerPin: isPinAuthenticated ? '138319814' : undefined,
         }),
       });
       const resJson = await res.json();
@@ -295,6 +362,36 @@ export default function FinanceAndDeficit({
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Mức phí: <strong>200.000đ/người</strong> • Hoàn trả 100% làm quỹ thưởng chung cuộc & liên hoan Gala CNHP
                 </p>
+                {isTreasurer ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Thủ quỹ Long Trịnh (Strava ID: 138319814) • Đang có quyền xác nhận thu phí</span>
+                    </span>
+                    {isPinAuthenticated && !isConnectedAsTreasurer && (
+                      <button
+                        onClick={handleLogoutTreasurerPin}
+                        className="text-[11px] text-slate-400 hover:text-rose-500 underline ml-1 cursor-pointer"
+                        title="Thoát phiên làm việc Thủ quỹ"
+                      >
+                        Thoát quyền
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
+                      <Lock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <span>Quyền xác nhận: Chỉ dành riêng cho <strong>Thủ quỹ Long Trịnh (Strava ID: 138319814)</strong></span>
+                    </span>
+                    <button
+                      onClick={() => setShowTreasurerAuthModal(true)}
+                      className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-bold cursor-pointer"
+                    >
+                      Xác thực
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -468,26 +565,37 @@ export default function FinanceAndDeficit({
                     </button>
                   )}
 
-                  <button
-                    onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
-                    disabled={isUpdating}
-                    className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
-                      u.isPaidFee
-                        ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    }`}
-                  >
-                    {isUpdating ? (
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                    ) : u.isPaidFee ? (
-                      <span>Hủy xác nhận</span>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Xác nhận đã thu 200k</span>
-                      </>
-                    )}
-                  </button>
+                  {isTreasurer ? (
+                    <button
+                      onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
+                      disabled={isUpdating}
+                      className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
+                        u.isPaidFee
+                          ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                      }`}
+                    >
+                      {isUpdating ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : u.isPaidFee ? (
+                        <span>Hủy xác nhận</span>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Xác nhận đã thu 200k</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowTreasurerAuthModal(true)}
+                      className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-200/70 transition-all cursor-pointer"
+                      title="Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) có quyền bấm xác nhận"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <span>{u.isPaidFee ? 'Đã thu 200k' : 'Chỉ Thủ quỹ xác nhận'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -585,27 +693,38 @@ export default function FinanceAndDeficit({
                     </td>
 
                     <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
-                        disabled={isUpdating}
-                        className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
-                          u.isPaidFee
-                            ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        }`}
-                        title={u.isPaidFee ? 'Đánh dấu lại thành viên này chưa nộp phí' : 'Xác nhận thành viên này đã nộp phí 200.000đ'}
-                      >
-                        {isUpdating ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : u.isPaidFee ? (
-                          <span>Hủy xác nhận</span>
-                        ) : (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Xác nhận đã thu</span>
-                          </>
-                        )}
-                      </button>
+                      {isTreasurer ? (
+                        <button
+                          onClick={() => handleTogglePaidFee(u, !u.isPaidFee)}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all ${
+                            u.isPaidFee
+                              ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                          }`}
+                          title={u.isPaidFee ? 'Đánh dấu lại thành viên này chưa nộp phí' : 'Xác nhận thành viên này đã nộp phí 200.000đ'}
+                        >
+                          {isUpdating ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : u.isPaidFee ? (
+                            <span>Hủy xác nhận</span>
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Xác nhận đã thu</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setShowTreasurerAuthModal(true)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100/70 hover:bg-slate-200/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 transition-all cursor-pointer"
+                          title="Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) có quyền bấm xác nhận"
+                        >
+                          <Lock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span>{u.isPaidFee ? 'Đã xác nhận' : 'Chỉ Thủ quỹ xác nhận'}</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -1296,6 +1415,90 @@ export default function FinanceAndDeficit({
                   ? 'Mở app ngân hàng quét mã để thanh toán phí tham dự 200.000đ'
                   : 'Mở app ngân hàng quét mã để thanh toán tiền nộp phạt'}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Thực Quyền Thủ Quỹ Long Trịnh */}
+      {showTreasurerAuthModal && (
+        <div
+          onClick={() => setShowTreasurerAuthModal(false)}
+          className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white leading-tight">
+                    Quyền Hạn Thủ Quỹ
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Xác nhận thu phí tham dự 200.000đ
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTreasurerAuthModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+              Theo quy định giải đấu, nút <strong>“Xác nhận đã thu”</strong> chỉ dành riêng cho <strong>Thủ quỹ Long Trịnh</strong> (Strava ID: <code className="font-mono font-bold bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded">138319814</code>) để đảm bảo tính chuẩn xác và minh bạch tài chính.
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {onConnectStrava && (
+                <button
+                  onClick={() => {
+                    setShowTreasurerAuthModal(false);
+                    onConnectStrava();
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#fc5200] hover:bg-[#e04900] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
+                  </svg>
+                  <span>Đăng Nhập Strava Thủ Quỹ</span>
+                </button>
+              )}
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-semibold uppercase">Hoặc nhập mã xác thực</span>
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+              </div>
+
+              <form onSubmit={handleVerifyTreasurerPin} className="space-y-2">
+                <input
+                  type="password"
+                  value={treasurerPinInput}
+                  onChange={(e) => {
+                    setTreasurerPinInput(e.target.value);
+                    setTreasurerPinError('');
+                  }}
+                  placeholder="Nhập mã PIN xác thực Thủ quỹ..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono tracking-widest text-center"
+                />
+                {treasurerPinError && (
+                  <p className="text-[11px] text-rose-500 font-semibold text-center">{treasurerPinError}</p>
+                )}
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
+                >
+                  Mở Khóa Quyền Xác Nhận Thu Phí
+                </button>
+              </form>
             </div>
           </div>
         </div>
