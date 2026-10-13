@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Team, User } from '@/types';
-import { X, Check, Trash2, Plus, Shield, Palette, Users, Crown, AlertTriangle } from 'lucide-react';
+import { X, Check, Trash2, Plus, Shield, Palette, Users, Crown, AlertTriangle, Lock } from 'lucide-react';
 
 interface EditTeamModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface EditTeamModalProps {
   teams: Team[];
   users: User[];
   onRefreshData: () => void;
+  isAdmin?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -32,6 +33,7 @@ export default function EditTeamModal({
   teams,
   users,
   onRefreshData,
+  isAdmin = false,
 }: EditTeamModalProps) {
   // Tab đang chọn: id của team cần sửa, hoặc 'CREATE_NEW'
   const [activeTab, setActiveTab] = useState<string>(initialTeamId || teams[0]?.id || 'CREATE_NEW');
@@ -55,10 +57,10 @@ export default function EditTeamModal({
       setActiveTab(initialTeamId);
     } else if (teams.length > 0) {
       setActiveTab(teams[0].id);
-    } else {
+    } else if (isAdmin) {
       setActiveTab('CREATE_NEW');
     }
-  }, [initialTeamId, isOpen, teams]);
+  }, [initialTeamId, isOpen, teams, isAdmin]);
 
   // Cập nhật giá trị form khi activeTab thay đổi
   useEffect(() => {
@@ -84,6 +86,10 @@ export default function EditTeamModal({
   // Lưu chỉnh sửa thông tin đội
   const handleSaveTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setMessage({ type: 'error', text: '🔒 Quyền hạn bị từ chối: Chỉ Quản trị viên (Admin) mới có quyền sửa tên đội đua!' });
+      return;
+    }
     if (!currentTeam) return;
     if (!teamName.trim()) {
       setMessage({ type: 'error', text: 'Tên đội đua không được để trống!' });
@@ -107,6 +113,7 @@ export default function EditTeamModal({
         body: JSON.stringify({
           action: 'update_team',
           team: updatedTeam,
+          isAdmin,
         }),
       });
 
@@ -141,6 +148,10 @@ export default function EditTeamModal({
   // Tạo đội mới
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setMessage({ type: 'error', text: '🔒 Quyền hạn bị từ chối: Chỉ Quản trị viên (Admin) mới có quyền tạo đội đua mới!' });
+      return;
+    }
     if (!newTeamName.trim()) {
       setMessage({ type: 'error', text: 'Vui lòng nhập tên cho đội mới!' });
       return;
@@ -157,6 +168,7 @@ export default function EditTeamModal({
           action: 'create_team',
           name: newTeamName.trim(),
           color: newTeamColor,
+          isAdmin,
         }),
       });
 
@@ -178,6 +190,10 @@ export default function EditTeamModal({
 
   // Xóa đội
   const handleDeleteTeam = async () => {
+    if (!isAdmin) {
+      alert('🔒 Quyền hạn bị từ chối: Chỉ Quản trị viên (Admin) mới có quyền xóa đội đua!');
+      return;
+    }
     if (!currentTeam) return;
     if (teams.length <= 1) {
       alert('Giải đấu phải có ít nhất 1 đội đua, không thể xóa tất cả các đội!');
@@ -203,6 +219,7 @@ export default function EditTeamModal({
         body: JSON.stringify({
           action: 'delete_team',
           teamId: currentTeam.id,
+          isAdmin,
         }),
       });
 
@@ -273,19 +290,29 @@ export default function EditTeamModal({
             );
           })}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('CREATE_NEW')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeTab === 'CREATE_NEW'
-                ? 'bg-orange-500 text-white shadow-sm'
-                : 'text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Thêm Đội</span>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('CREATE_NEW')}
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'CREATE_NEW'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Thêm Đội</span>
+            </button>
+          )}
         </div>
+
+        {/* Cảnh báo chế độ chỉ đọc nếu không phải Admin */}
+        {!isAdmin && (
+          <div className="mx-5 mt-4 px-3.5 py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <span><strong>Chế độ chỉ xem:</strong> Chỉ Quản trị viên (Admin) mới có quyền chỉnh sửa tên đội và lưu thay đổi.</span>
+          </div>
+        )}
 
         {/* Thông báo kết quả */}
         {message && (
@@ -314,7 +341,8 @@ export default function EditTeamModal({
                   placeholder="Ví dụ: Team 4 - Bứt Phá Giới Hạn"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  disabled={!isAdmin || isSaving}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800/60 disabled:cursor-not-allowed"
                   autoFocus
                   required
                 />
@@ -330,12 +358,13 @@ export default function EditTeamModal({
                       <button
                         key={c.hex}
                         type="button"
+                        disabled={!isAdmin}
                         onClick={() => setNewTeamColor(c.hex)}
                         className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center ${
                           newTeamColor === c.hex
                             ? 'scale-115 border-slate-900 dark:border-white shadow-md'
                             : 'border-transparent hover:scale-105'
-                        }`}
+                        } ${!isAdmin ? 'cursor-not-allowed opacity-60' : ''}`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       >
@@ -345,9 +374,10 @@ export default function EditTeamModal({
                     <div className="flex items-center space-x-1 pl-1">
                       <input
                         type="color"
+                        disabled={!isAdmin}
                         value={newTeamColor}
                         onChange={(e) => setNewTeamColor(e.target.value)}
-                        className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
+                        className={`w-7 h-7 rounded-lg bg-transparent border-0 ${!isAdmin ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                         title="Tự chọn mã màu tùy ý"
                       />
                       <span className="text-xs font-mono text-slate-500">{newTeamColor}</span>
@@ -366,11 +396,15 @@ export default function EditTeamModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
-                  className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/25 transition active:scale-95 flex items-center space-x-1.5"
+                  disabled={!isAdmin || isSaving}
+                  className={`px-5 py-2 rounded-xl text-white text-xs font-bold shadow-md transition flex items-center space-x-1.5 ${
+                    isAdmin
+                      ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25 active:scale-95'
+                      : 'bg-slate-400 cursor-not-allowed opacity-60'
+                  }`}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Đang tạo...' : 'Tạo Đội Ngay'}</span>
+                  {isAdmin ? <Plus className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                  <span>{isSaving ? 'Đang tạo...' : isAdmin ? 'Tạo Đội Ngay' : 'Chỉ Admin mới được tạo'}</span>
                 </button>
               </div>
             </form>
@@ -384,9 +418,10 @@ export default function EditTeamModal({
                 <input
                   type="text"
                   value={teamName}
+                  disabled={!isAdmin || isSaving}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="Nhập tên mới cho đội..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800/60 disabled:cursor-not-allowed"
                   autoFocus
                   required
                 />
@@ -405,12 +440,13 @@ export default function EditTeamModal({
                       <button
                         key={c.hex}
                         type="button"
+                        disabled={!isAdmin}
                         onClick={() => setTeamColor(c.hex)}
                         className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center ${
                           teamColor === c.hex
                             ? 'scale-115 border-slate-900 dark:border-white shadow-md'
                             : 'border-transparent hover:scale-105'
-                        }`}
+                        } ${!isAdmin ? 'cursor-not-allowed opacity-60' : ''}`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       >
@@ -420,9 +456,10 @@ export default function EditTeamModal({
                     <div className="flex items-center space-x-1 pl-1">
                       <input
                         type="color"
+                        disabled={!isAdmin}
                         value={teamColor}
                         onChange={(e) => setTeamColor(e.target.value)}
-                        className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
+                        className={`w-7 h-7 rounded-lg bg-transparent border-0 ${!isAdmin ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                         title="Tự chọn mã màu tùy ý"
                       />
                       <span className="text-xs font-mono text-slate-500">{teamColor}</span>
@@ -437,8 +474,9 @@ export default function EditTeamModal({
                 </label>
                 <select
                   value={captainId}
+                  disabled={!isAdmin || isSaving}
                   onChange={(e) => setCaptainId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800/60 disabled:cursor-not-allowed"
                 >
                   <option value="">-- Chưa chỉ định đội trưởng --</option>
                   {teamMembers.map((m) => (
@@ -454,7 +492,7 @@ export default function EditTeamModal({
 
               {/* Nút hành động */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                {teams.length > 1 ? (
+                {isAdmin && teams.length > 1 ? (
                   <button
                     type="button"
                     onClick={handleDeleteTeam}
@@ -478,11 +516,15 @@ export default function EditTeamModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving}
-                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/25 transition active:scale-95 flex items-center space-x-1.5"
+                    disabled={!isAdmin || isSaving}
+                    className={`px-5 py-2 rounded-xl text-white text-xs font-bold shadow-md transition flex items-center space-x-1.5 ${
+                      isAdmin
+                        ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25 active:scale-95'
+                        : 'bg-slate-400 cursor-not-allowed opacity-60'
+                    }`}
                   >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{isSaving ? 'Đang lưu...' : 'Lưu Thay Đổi'}</span>
+                    {isAdmin ? <Check className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isSaving ? 'Đang lưu...' : isAdmin ? 'Lưu Thay Đổi' : 'Chỉ Admin mới được lưu'}</span>
                   </button>
                 </div>
               </div>

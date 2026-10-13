@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'create_team') {
-      const { name, color } = body;
+      const { name, color, isAdmin } = body;
+      if (isAdmin === false) {
+        return NextResponse.json({ error: 'Chỉ Quản trị viên (Admin) mới có quyền tạo đội đua!' }, { status: 403 });
+      }
       if (!name || !name.trim()) {
         return NextResponse.json({ error: 'Tên đội đua không được để trống' }, { status: 400 });
       }
@@ -73,7 +76,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'update_team') {
-      const { team } = body;
+      const { team, isAdmin } = body;
+      if (isAdmin === false) {
+        return NextResponse.json({ error: 'Chỉ Quản trị viên (Admin) mới có quyền sửa tên đội đua!' }, { status: 403 });
+      }
       if (!team || !team.id || !team.name) {
         return NextResponse.json({ error: 'Dữ liệu đội đua không hợp lệ' }, { status: 400 });
       }
@@ -82,7 +88,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'delete_team') {
-      const { teamId } = body;
+      const { teamId, isAdmin } = body;
+      if (isAdmin === false) {
+        return NextResponse.json({ error: 'Chỉ Quản trị viên (Admin) mới có quyền xóa đội đua!' }, { status: 403 });
+      }
       if (!teamId) {
         return NextResponse.json({ error: 'Thiếu mã đội đua (teamId)' }, { status: 400 });
       }

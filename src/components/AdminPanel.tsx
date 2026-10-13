@@ -1248,6 +1248,7 @@ export default function AdminPanel({ teams, users, leaveRequests = [], onRefresh
           teams={teams}
           users={users}
           onRefreshData={onRefreshData}
+          isAdmin={true}
         />
       </div>
 
