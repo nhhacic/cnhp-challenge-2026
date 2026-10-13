@@ -13,6 +13,7 @@ interface CountdownBannerProps {
   onViewRules?: () => void;
   onInstallApp?: () => void;
   onOpenLeaveModal?: () => void;
+  onViewFinance?: () => void;
 }
 
 export default function CountdownBanner({
@@ -23,6 +24,7 @@ export default function CountdownBanner({
   onViewRules,
   onInstallApp,
   onOpenLeaveModal,
+  onViewFinance,
 }: CountdownBannerProps) {
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-5 sm:p-7 shadow-xl mb-6 sm:mb-8 relative overflow-hidden border border-orange-500/20">
@@ -115,6 +117,15 @@ export default function CountdownBanner({
                   🌴 Xin Nghỉ Tuần
                 </button>
               )}
+              {onViewFinance && (
+                <button
+                  onClick={onViewFinance}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 flex items-center gap-1 transition-all active:scale-95 font-bold"
+                  title="Xem Trung tâm nhắc nợ & Quỹ giải"
+                >
+                  📢 Nhắc Nợ & Quỹ
+                </button>
+              )}
             </div>
           </div>
 
@@ -142,7 +153,13 @@ export default function CountdownBanner({
               </div>
             </div>
 
-            <div className="text-center p-1.5 sm:p-2 rounded-xl bg-white/5">
+            <div 
+              onClick={onViewFinance}
+              className={`text-center p-1.5 sm:p-2 rounded-xl bg-white/5 transition-all ${
+                onViewFinance ? 'cursor-pointer hover:bg-white/10 active:scale-95' : ''
+              }`}
+              title={onViewFinance ? 'Bấm để xem Báo cáo tài chính & Nhắc nợ' : undefined}
+            >
               <div className="text-[10px] sm:text-[11px] font-medium text-slate-400 mb-0.5">
                 <span className="sm:hidden">Quỹ Giải</span>
                 <span className="hidden sm:inline">Số Dư Quỹ Giải</span>

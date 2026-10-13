@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Lock,
 } from 'lucide-react';
+import DebtReminderHub from '@/components/DebtReminderHub';
 
 interface FinanceAndDeficitProps {
   financialOverview: FinancialOverview;
@@ -259,9 +260,18 @@ export default function FinanceAndDeficit({
     setPaymentType('ENTRY_FEE');
   };
 
+  const handleOpenPaymentQrFromHub = (user: User, amount: number, type: 'PENALTY' | 'ENTRY_FEE' | 'TOTAL') => {
+    setSelectedPaymentUser(user);
+    setSelectedPaymentAmount(amount);
+    setPaymentType(type === 'ENTRY_FEE' ? 'ENTRY_FEE' : 'PENALTY');
+    setIsQrZoomOpen(true);
+  };
+
   const paymentSyntax = selectedPaymentUser
     ? paymentType === 'ENTRY_FEE'
       ? `CNHP PHI ${selectedPaymentUser.name.replace(/\s+/g, ' ')}`
+      : selectedPaymentAmount > 200000 && !selectedPaymentUser.isPaidFee
+      ? `CNHP ${selectedPaymentUser.name.replace(/\s+/g, ' ')} PHI VA PHAT T${currentWeekNumber}`
       : `CNHP ${selectedPaymentUser.name.replace(/\s+/g, ' ')} Tuan ${currentWeekNumber}`
     : paymentType === 'ENTRY_FEE'
     ? `CNHP PHI [Ten VDV]`
@@ -344,7 +354,21 @@ export default function FinanceAndDeficit({
         </div>
       </div>
 
-      {/* 2. THEO DÕI & NỘP PHÍ THAM DỰ 200.000Đ */}
+      {/* 2. TRUNG TÂM NHẮC NỢ NỘP QUỸ & NỘP PHẠT */}
+      <DebtReminderHub
+        users={users}
+        teams={teams}
+        weeks={weeks}
+        selectedWeek={selectedWeek}
+        userWeeklyStatsMap={userWeeklyStatsMap}
+        isTreasurer={isTreasurer}
+        onTogglePaidFee={handleTogglePaidFee}
+        onOpenPaymentQr={handleOpenPaymentQrFromHub}
+        updatingUserId={updatingUserId}
+        onOpenTreasurerAuth={() => setShowTreasurerAuthModal(true)}
+      />
+
+      {/* 3. THEO DÕI & NỘP PHÍ THAM DỰ 200.000Đ */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>

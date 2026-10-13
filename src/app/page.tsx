@@ -12,6 +12,8 @@ import ChallengeRules from '@/components/ChallengeRules';
 import InstallAppModal from '@/components/InstallAppModal';
 import StravaOAuthModal from '@/components/StravaOAuthModal';
 import LeaveRequestModal from '@/components/LeaveRequestModal';
+import PersonalDebtBanner from '@/components/PersonalDebtBanner';
+import { formatCurrency } from '@/lib/rules-engine';
 import {
   Activity,
   Team,
@@ -24,7 +26,7 @@ import {
   FinancialOverview,
   LeaveRequest,
 } from '@/types';
-import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon } from 'lucide-react';
+import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon, QrCode, Copy, Check, X } from 'lucide-react';
 
 export default function HomePage() {
   const [data, setData] = useState<{
@@ -53,6 +55,8 @@ export default function HomePage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveDefaultUserId, setLeaveDefaultUserId] = useState<string | undefined>(undefined);
   const [leaveDefaultWeekNumber, setLeaveDefaultWeekNumber] = useState<number | undefined>(undefined);
+  const [quickPayData, setQuickPayData] = useState<{ user: User; amount: number; type: 'PENALTY' | 'ENTRY_FEE' | 'TOTAL' } | null>(null);
+  const [quickPayCopied, setQuickPayCopied] = useState<'stk' | 'syntax' | null>(null);
 
   // Khởi tạo chế độ tối và kiểm tra phiên đăng nhập Strava
   useEffect(() => {
@@ -331,7 +335,22 @@ export default function HomePage() {
           onViewRules={() => setActiveTab('RULES')}
           onInstallApp={() => setShowInstallModal(true)}
           onOpenLeaveModal={() => handleOpenLeaveModal()}
+          onViewFinance={() => setActiveTab('FINANCE')}
         />
+
+        {/* Banner Nhắc Nợ Cá Nhân Cho VĐV Đăng Nhập */}
+        {currentParticipant && (
+          <PersonalDebtBanner
+            user={currentParticipant}
+            team={teams.find((t) => t.id === currentParticipant.teamId)}
+            currentWeekNumber={selectedWeekNumber || 1}
+            userWeeklyStats={userWeeklyStats[currentParticipant.id] || []}
+            onOpenPaymentQr={(user, amount, type) => {
+              setQuickPayData({ user, amount, type });
+            }}
+            onNavigateToFinance={() => setActiveTab('FINANCE')}
+          />
+        )}
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-5 overflow-x-auto scrollbar-none">
@@ -512,6 +531,115 @@ export default function HomePage() {
         onClose={() => setShowStravaModal(false)}
         users={users}
       />
+
+      {/* Modal QR Nhanh Nộp Quỹ / Nộp Phạt */}
+      {quickPayData && (
+        <div 
+          onClick={() => setQuickPayData(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-5 relative border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4"
+          >
+            <button
+              onClick={() => setQuickPayData(null)}
+              className="absolute top-3.5 right-3.5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center pr-6">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 text-xs font-bold mb-1">
+                <QrCode className="w-3.5 h-3.5" />
+                {quickPayData.type === 'ENTRY_FEE' ? 'NỘP PHÍ THAM DỰ 200K' : 'NỘP TIỀN QUỸ & PHẠT CNHP'}
+              </div>
+              <h4 className="text-base font-black text-slate-900 dark:text-white uppercase">
+                {quickPayData.user.name}
+              </h4>
+              <p className="text-base font-black text-rose-600 dark:text-rose-400">
+                {formatCurrency(quickPayData.amount)}
+              </p>
+            </div>
+
+            {/* Ảnh VietQR tự động điền tiền */}
+            {(() => {
+              const syntax = quickPayData.type === 'ENTRY_FEE'
+                ? `CNHP PHI ${quickPayData.user.name.replace(/\s+/g, ' ')}`
+                : quickPayData.amount > 200000 && !quickPayData.user.isPaidFee
+                ? `CNHP ${quickPayData.user.name.replace(/\s+/g, ' ')} PHI VA PHAT T${selectedWeekNumber || 1}`
+                : `CNHP ${quickPayData.user.name.replace(/\s+/g, ' ')} Tuan ${selectedWeekNumber || 1}`;
+
+              const qrUrl = `https://img.vietqr.io/image/970407-19030671988989-compact2.png?amount=${quickPayData.amount}&addInfo=${encodeURIComponent(syntax)}&accountName=TRINH%20LONG`;
+
+              return (
+                <>
+                  <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-inner flex justify-center">
+                    <img
+                      src={qrUrl}
+                      alt="Mã QR nộp tiền Thủ Quỹ Trịnh Long"
+                      className="w-full max-h-[380px] object-contain rounded-xl"
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Chủ tài khoản:</span>
+                      <span className="font-black text-slate-900 dark:text-white uppercase">TRINH LONG</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Số tài khoản:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-black text-orange-600 dark:text-orange-400 text-sm">
+                          1903 0671 9889 89
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText('19030671988989');
+                            setQuickPayCopied('stk');
+                            setTimeout(() => setQuickPayCopied(null), 2000);
+                          }}
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
+                          title="Sao chép STK"
+                        >
+                          {quickPayCopied === 'stk' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Ngân hàng:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">Techcombank</span>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-slate-500">Cú pháp CK:</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(syntax);
+                            setQuickPayCopied('syntax');
+                            setTimeout(() => setQuickPayCopied(null), 2000);
+                          }}
+                          className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          {quickPayCopied === 'syntax' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          <span>{quickPayCopied === 'syntax' ? 'Đã chép' : 'Sao chép'}</span>
+                        </button>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 select-all break-all">
+                        {syntax}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+
+            <p className="text-[10px] text-center text-slate-400">
+              * Mở app ngân hàng quét mã để tự điền tiền và nội dung • Hạn nộp trước 12h Thứ 3!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">

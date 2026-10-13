@@ -17,7 +17,10 @@ import {
   QrCode,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  MessageSquare,
+  CreditCard,
+  ShieldAlert
 } from 'lucide-react';
 
 interface RunnerDetailModalProps {
@@ -54,7 +57,8 @@ export default function RunnerDetailModal({
   const [editingActId, setEditingActId] = useState<string | null>(null);
   const [lagKmInput, setLagKmInput] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-  const [copiedField, setCopiedField] = useState<'stk' | 'syntax' | null>(null);
+  const [useVietQr, setUseVietQr] = useState<boolean>(true);
+  const [copiedField, setCopiedField] = useState<'stk' | 'syntax' | 'reminder' | null>(null);
 
   if (!user) return null;
 
@@ -95,6 +99,52 @@ export default function RunnerDetailModal({
       type: (!act.isTrailOrHike ? 'TrailRun' : 'Run') as any,
     };
     onUpdateActivity(updated);
+  };
+
+  const isUnpaidFee = !user.isPaidFee;
+  const currentWeekPenalty = currentWeekStats?.totalPenaltyAmount || 0;
+  const totalDebt = (isUnpaidFee ? 200000 : 0) + currentWeekPenalty;
+
+  const paymentSyntax = isUnpaidFee && currentWeekPenalty > 0
+    ? `CNHP ${user.name.replace(/\s+/g, ' ')} PHI VA PHAT T${selectedWeek?.weekNumber || 1}`
+    : isUnpaidFee
+    ? `CNHP PHI ${user.name.replace(/\s+/g, ' ')}`
+    : `CNHP ${user.name.replace(/\s+/g, ' ')} Tuan ${selectedWeek?.weekNumber || 1}`;
+
+  const vietQrUrl = `https://img.vietqr.io/image/970407-19030671988989-compact2.png?amount=${totalDebt > 0 ? totalDebt : 200000}&addInfo=${encodeURIComponent(paymentSyntax)}&accountName=TRINH%20LONG`;
+
+  const handleCopyRunnerReminder = () => {
+    const parts: string[] = [];
+    if (isUnpaidFee) {
+      parts.push(`• Phí tham dự giải: 200.000đ`);
+    }
+    if (currentWeekPenalty > 0) {
+      const details: string[] = [];
+      if (currentWeekStats?.missingDays) details.push(`thiếu ${currentWeekStats.missingDays} buổi`);
+      if (currentWeekStats?.deficitKm) details.push(`thiếu ${currentWeekStats.deficitKm}km`);
+      parts.push(`• Tiền phạt ${selectedWeek?.name || 'Tuần này'}: ${formatCurrency(currentWeekPenalty)}${details.length ? ` (${details.join(', ')})` : ''}`);
+    }
+
+    const text = `🏃‍♂️ [CNHP THU ĐÔNG 2026] - LỜI NHẮC NỘP QUỸ & PHẠT
+Thân gửi bạn ${user.name} (${team?.name || 'VĐV CNHP'}):
+
+Hệ thống ghi nhận bạn có khoản đóng góp cần hoàn tất cho giải chạy:
+${parts.join('\n')}
+👉 TỔNG CỘNG CẦN NỘP: ${formatCurrency(totalDebt)}
+⏰ Hạn nộp: Trước 12h00 Thứ Ba hàng tuần
+
+🏦 THÔNG TIN CHUYỂN KHOẢN THỦ QUỸ:
+• Ngân hàng: Techcombank (TCB)
+• Số TK: 19030671988989
+• Chủ TK: TRINH LONG
+• Nội dung CK: ${paymentSyntax}
+
+(💡 Quét mã VietQR trên web sẽ tự điền STK, tiền và cú pháp!)
+Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới nhiều niềm vui! 🔥`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedField('reminder');
+    setTimeout(() => setCopiedField(null), 2500);
   };
 
   return (
@@ -254,31 +304,60 @@ export default function RunnerDetailModal({
                 </div>
               </div>
 
-              {/* Banner Nộp Phạt nếu có phát sinh tiền phạt trong tuần */}
-              {currentWeekStats.totalPenaltyAmount > 0 && (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/40 dark:to-orange-950/40 border-2 border-rose-200 dark:border-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Thẻ Công Nợ & Nộp Quỹ/Phạt */}
+              {totalDebt > 0 && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50 dark:from-rose-950/40 dark:via-orange-950/30 dark:to-amber-950/30 border-2 border-rose-300 dark:border-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md shadow-rose-500/20">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 to-orange-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md shadow-rose-500/20">
                       💳
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-rose-950 dark:text-rose-200">
-                        Khoản Phạt Cần Nộp {selectedWeek.name}: <span className="text-sm font-black text-rose-600 dark:text-rose-400">{formatCurrency(currentWeekStats.totalPenaltyAmount)}</span>
+                      <div className="text-xs font-black text-rose-950 dark:text-rose-200">
+                        Tổng Công Nợ Cần Hoàn Thành: <span className="text-sm font-black text-rose-600 dark:text-rose-400">{formatCurrency(totalDebt)}</span>
                       </div>
-                      <div className="text-[11px] text-rose-700/80 dark:text-rose-400/80">
-                        {currentWeekStats.missingDays > 0 ? `Thiếu ${currentWeekStats.missingDays} buổi (${formatCurrency(currentWeekStats.penaltyDaysAmount)}) ` : ''}
-                        {currentWeekStats.deficitKm > 0 ? `• Thiếu ${currentWeekStats.deficitKm}km (${formatCurrency(currentWeekStats.penaltyKmAmount)})` : ''}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                        {isUnpaidFee && (
+                          <span className="font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950/70 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
+                            Chưa nộp phí 200k
+                          </span>
+                        )}
+                        {currentWeekPenalty > 0 && (
+                          <span className="font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/70 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">
+                            Phạt {selectedWeek.name}: {formatCurrency(currentWeekPenalty)} ({currentWeekStats.missingDays ? `thiếu ${currentWeekStats.missingDays}b ` : ''}{currentWeekStats.deficitKm ? `thiếu ${currentWeekStats.deficitKm}km` : ''})
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0"
-                  >
-                    <QrCode className="w-4 h-4" />
-                    <span>Quét QR Nộp Phạt</span>
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleCopyRunnerReminder}
+                      className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 active:scale-95"
+                      title="Sao chép tin nhắn nhắc nợ gửi Zalo cho VĐV này"
+                    >
+                      {copiedField === 'reminder' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Đã chép!</span>
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Nhắc Zalo</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setShowPaymentModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                      title="Mở mã QR nộp tiền với số tiền và cú pháp chính xác"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      <span>Quét QR Nộp</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </>
@@ -434,7 +513,8 @@ export default function RunnerDetailModal({
       </div>
 
       {/* Modal QR Nộp Phạt Thủ Quỹ */}
-      {showPaymentModal && currentWeekStats && (
+      {/* Modal QR Nộp Quỹ & Phạt Thủ Quỹ */}
+      {showPaymentModal && (
         <div 
           onClick={() => setShowPaymentModal(false)}
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -453,21 +533,51 @@ export default function RunnerDetailModal({
             <div className="text-center pr-6">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 text-xs font-bold mb-1">
                 <QrCode className="w-3.5 h-3.5" />
-                NỘP TIỀN PHẠT TUẦN {selectedWeek?.weekNumber}
+                {isUnpaidFee && currentWeekPenalty > 0
+                  ? `NỘP PHÍ & PHẠT TUẦN ${selectedWeek?.weekNumber || 1}`
+                  : isUnpaidFee
+                  ? 'NỘP PHÍ THAM DỰ 200K'
+                  : `NỘP PHẠT TUẦN ${selectedWeek?.weekNumber || 1}`}
               </div>
               <h4 className="text-base font-black text-slate-900 dark:text-white uppercase">
                 {user.name}
               </h4>
-              <p className="text-sm font-black text-rose-600 dark:text-rose-400">
-                {formatCurrency(currentWeekStats.totalPenaltyAmount)}
+              <p className="text-base font-black text-rose-600 dark:text-rose-400">
+                {formatCurrency(totalDebt > 0 ? totalDebt : 200000)}
               </p>
+            </div>
+
+            {/* Chuyển đổi mã VietQR tự động điền tiền vs QR gốc */}
+            <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setUseVietQr(true)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  useVietQr
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                ⚡ VietQR (Điền sẵn tiền)
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseVietQr(false)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  !useVietQr
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🏦 QR Gốc
+              </button>
             </div>
 
             {/* Ảnh QR */}
             <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-inner flex justify-center">
               <img
-                src="/thu_quy_qr.jpg"
-                alt="Mã QR nộp phạt Thủ Quỹ Trịnh Long"
+                src={useVietQr ? vietQrUrl : "/thu_quy_qr.jpg"}
+                alt="Mã QR nộp tiền Thủ Quỹ Trịnh Long"
                 className="w-full max-h-[380px] object-contain rounded-xl"
               />
             </div>
@@ -506,8 +616,7 @@ export default function RunnerDetailModal({
                   <span className="text-slate-500">Cú pháp CK:</span>
                   <button
                     onClick={() => {
-                      const syntax = `CNHP ${user.name.replace(/\s+/g, ' ')} Tuan ${selectedWeek?.weekNumber || 1}`;
-                      navigator.clipboard.writeText(syntax);
+                      navigator.clipboard.writeText(paymentSyntax);
                       setCopiedField('syntax');
                       setTimeout(() => setCopiedField(null), 2000);
                     }}
@@ -517,14 +626,14 @@ export default function RunnerDetailModal({
                     <span>{copiedField === 'syntax' ? 'Đã chép' : 'Sao chép'}</span>
                   </button>
                 </div>
-                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 select-all">
-                  CNHP {user.name} Tuan {selectedWeek?.weekNumber || 1}
+                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 select-all break-all">
+                  {paymentSyntax}
                 </div>
               </div>
             </div>
 
             <p className="text-[10px] text-center text-slate-400">
-              * Vui lòng nộp phạt trước 12h Thứ 3 hàng tuần về cho Thủ quỹ!
+              * Quét mã trên app ngân hàng sẽ tự điền tiền và cú pháp • Hạn nộp trước 12h Thứ 3!
             </p>
           </div>
         </div>
