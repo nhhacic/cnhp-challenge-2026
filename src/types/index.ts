@@ -78,6 +78,22 @@ export interface UserWeeklyStat {
   averagePaceSeconds: number;
   isCompleted: boolean;
   rolledOverToNextWeek: number; // Km nợ chuyển sang tuần tiếp theo
+  isExcused?: boolean; // Được duyệt tạm nghỉ tuần này vì lý do bất khả kháng
+  leaveReason?: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  teamId?: string;
+  weekNumber: number;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
 export interface TeamWeeklyStat {

@@ -263,7 +263,11 @@ export default function IndividualLeaderboard({
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60">
                   <div>
                     {!isOverall ? (
-                      weeklyStat?.isCompleted ? (
+                      weeklyStat?.isExcused ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700" title={weeklyStat.leaveReason || 'Nghỉ lý do bất khả kháng'}>
+                          🌴 Nghỉ bất khả kháng
+                        </span>
+                      ) : weeklyStat?.isCompleted ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                           <CheckCircle className="w-3 h-3" />
                           Đạt chỉ tiêu
@@ -440,7 +444,11 @@ export default function IndividualLeaderboard({
                     {/* Trạng thái tuần */}
                     {!isOverall && (
                       <td className="py-3.5 px-4 text-center">
-                        {weeklyStat?.isCompleted ? (
+                        {weeklyStat?.isExcused ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700" title={weeklyStat.leaveReason || 'Nghỉ lý do bất khả kháng (Miễn chỉ tiêu)'}>
+                            🌴 Nghỉ bất khả kháng
+                          </span>
+                        ) : weeklyStat?.isCompleted ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                             <CheckCircle className="w-3.5 h-3.5" />
                             Đạt chỉ tiêu

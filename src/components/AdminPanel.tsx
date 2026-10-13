@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Team, Activity, ActivityType } from '@/types';
+import { User, Team, Activity, ActivityType, LeaveRequest } from '@/types';
 import {
   Settings,
   Shield,
@@ -23,12 +23,15 @@ import {
   Database,
   UploadCloud,
   CheckCircle2,
+  Clock,
+  ShieldAlert,
 } from 'lucide-react';
 import EditTeamModal from '@/components/EditTeamModal';
 
 interface AdminPanelProps {
   teams: Team[];
   users: User[];
+  leaveRequests?: LeaveRequest[];
   onRefreshData: () => void;
 }
 
@@ -44,7 +47,16 @@ const PRESET_COLORS = [
   { name: 'Xám Thép', hex: '#64748b' },
 ];
 
-export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelProps) {
+export default function AdminPanel({ teams, users, leaveRequests = [], onRefreshData }: AdminPanelProps) {
+  // Quản lý Đơn Xin Tạm Nghỉ Chạy (Bất Khả Kháng)
+  const [leaveStatusFilter, setLeaveStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [showAddLeaveModal, setShowAddLeaveModal] = useState(false);
+  const [quickLeaveUserId, setQuickLeaveUserId] = useState<string>(users[0]?.id || '');
+  const [quickLeaveWeek, setQuickLeaveWeek] = useState<number>(1);
+  const [quickLeaveReason, setQuickLeaveReason] = useState<string>('Chấn thương theo chỉ định của bác sĩ');
+  const [isSubmittingQuickLeave, setIsSubmittingQuickLeave] = useState(false);
+  const [isReviewingLeave, setIsReviewingLeave] = useState<string | null>(null);
+
   // Bộ lọc & tìm kiếm thành viên
   const [searchQuery, setSearchQuery] = useState('');
   const [teamFilter, setTeamFilter] = useState('ALL');
@@ -263,6 +275,91 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
       onRefreshData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // =================== DUYỆT ĐƠN NGHỈ BẤT KHẢ KHÁNG ===================
+
+  const handleReviewLeaveRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
+    setIsReviewingLeave(requestId);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'review_leave_request',
+          requestId,
+          status,
+          reviewerName: 'Admin Trọng Tài',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onRefreshData();
+      } else {
+        alert(data.error || 'Thao tác duyệt thất bại');
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err.message || String(err)));
+    } finally {
+      setIsReviewingLeave(null);
+    }
+  };
+
+  const handleDeleteLeaveRequest = async (requestId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa đơn xin nghỉ này không?')) return;
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_leave_request',
+          requestId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onRefreshData();
+      } else {
+        alert(data.error || 'Thao tác xóa thất bại');
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err.message || String(err)));
+    }
+  };
+
+  const handleCreateQuickLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickLeaveUserId || !quickLeaveReason.trim()) {
+      alert('Vui lòng chọn thành viên và nhập lý do');
+      return;
+    }
+    setIsSubmittingQuickLeave(true);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit_leave_request',
+          userId: quickLeaveUserId,
+          weekNumber: Number(quickLeaveWeek),
+          reason: quickLeaveReason.trim(),
+          status: 'APPROVED',
+          reviewerName: 'Admin Trọng Tài',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Đã tạo và duyệt miễn phạt tuần thành công cho thành viên!');
+        setShowAddLeaveModal(false);
+        onRefreshData();
+      } else {
+        alert(data.error || 'Không thể tạo đơn nghỉ');
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + (err.message || String(err)));
+    } finally {
+      setIsSubmittingQuickLeave(false);
     }
   };
 
@@ -605,6 +702,298 @@ export default function AdminPanel({ teams, users, onRefreshData }: AdminPanelPr
             </p>
           </div>
         )}
+      </div>
+
+      {/* ================= KHU VỰC: DUYỆT ĐƠN TẠM NGHỈ CHẠY (BẤT KHẢ KHÁNG) ================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="text-xl">🌴</span>
+                <span>Duyệt Đơn Xin Tạm Nghỉ Chạy (Bất Khả Kháng)</span>
+              </h3>
+              <div className="flex items-center gap-1.5 text-xs font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  Tổng: {leaveRequests.length}
+                </span>
+                {leaveRequests.filter((r) => r.status === 'PENDING').length > 0 ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                    ⏳ Cần duyệt: {leaveRequests.filter((r) => r.status === 'PENDING').length}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    ✓ Đã xử lý hết
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              VĐV xin nghỉ do chấn thương, ốm đau, công tác. Khi duyệt: được miễn chỉ tiêu tuần đó (0 km, 0 buổi, không phạt, không nợ gối đầu) và bảo toàn điểm trung bình của đội đua.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowAddLeaveModal(!showAddLeaveModal)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all active:scale-95 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{showAddLeaveModal ? 'Đóng Form' : '+ Cấp Phép Nghỉ Cho VĐV'}</span>
+          </button>
+        </div>
+
+        {/* Form Admin tự cấp phép nhanh */}
+        {showAddLeaveModal && (
+          <form
+            onSubmit={handleCreateQuickLeave}
+            className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 space-y-3 animate-fadeIn text-xs sm:text-sm"
+          >
+            <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 text-amber-600" />
+              <span>Admin Cấp Phép Tạm Nghỉ Nhanh (Duyệt Ngay Lập Tức):</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                  Chọn Vận Động Viên
+                </label>
+                <select
+                  value={quickLeaveUserId}
+                  onChange={(e) => setQuickLeaveUserId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({teams.find((t) => t.id === u.teamId)?.name || ''})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                  Tuần Miễn Chỉ Tiêu
+                </label>
+                <select
+                  value={quickLeaveWeek}
+                  onChange={(e) => setQuickLeaveWeek(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
+                    <option key={w} value={w}>
+                      Tuần {w}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                  Lý Do Bất Khả Kháng
+                </label>
+                <input
+                  type="text"
+                  value={quickLeaveReason}
+                  onChange={(e) => setQuickLeaveReason(e.target.value)}
+                  placeholder="Ví dụ: Giãn dây chằng gối, Sốt xuất huyết..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAddLeaveModal(false)}
+                className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingQuickLeave}
+                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md shadow-amber-500/20"
+              >
+                {isSubmittingQuickLeave ? 'Đang lưu...' : '✓ Duyệt Miễn Phạt Tuần Ngay'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Bộ lọc trạng thái đơn */}
+        <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl w-fit text-xs font-bold">
+          <button
+            onClick={() => setLeaveStatusFilter('ALL')}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              leaveStatusFilter === 'ALL'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
+          >
+            Tất cả ({leaveRequests.length})
+          </button>
+          <button
+            onClick={() => setLeaveStatusFilter('PENDING')}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              leaveStatusFilter === 'PENDING'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
+          >
+            ⏳ Chờ duyệt ({leaveRequests.filter((r) => r.status === 'PENDING').length})
+          </button>
+          <button
+            onClick={() => setLeaveStatusFilter('APPROVED')}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              leaveStatusFilter === 'APPROVED'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
+          >
+            ✅ Đã duyệt ({leaveRequests.filter((r) => r.status === 'APPROVED').length})
+          </button>
+          <button
+            onClick={() => setLeaveStatusFilter('REJECTED')}
+            className={`px-3 py-1.5 rounded-xl transition-all ${
+              leaveStatusFilter === 'REJECTED'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
+          >
+            ❌ Từ chối ({leaveRequests.filter((r) => r.status === 'REJECTED').length})
+          </button>
+        </div>
+
+        {/* Danh sách đơn xin nghỉ */}
+        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {(() => {
+            const filteredRequests = leaveRequests.filter((r) => {
+              if (leaveStatusFilter === 'ALL') return true;
+              return r.status === leaveStatusFilter;
+            });
+
+            if (filteredRequests.length === 0) {
+              return (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  Không có đơn xin tạm nghỉ nào trong danh mục này.
+                </div>
+              );
+            }
+
+            return filteredRequests.map((req) => {
+              const reqUser = users.find((u) => u.id === req.userId);
+              const userTeam = teams.find((t) => t.id === req.teamId || t.id === reqUser?.teamId);
+              const isPending = req.status === 'PENDING';
+              const isApproved = req.status === 'APPROVED';
+              const isRejected = req.status === 'REJECTED';
+
+              return (
+                <div
+                  key={req.id}
+                  className="p-3.5 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
+                >
+                  <div className="flex items-start sm:items-center space-x-3 min-w-[240px]">
+                    <img
+                      src={req.userAvatar || reqUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                      alt={req.userName}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          {req.userName}
+                        </span>
+                        {userTeam && (
+                          <span
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                            style={{ backgroundColor: `${userTeam.color}15`, color: userTeam.color }}
+                          >
+                            {userTeam.name}
+                          </span>
+                        )}
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                          Tuần {req.weekNumber}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 italic">
+                        Lý do: &quot;{req.reason}&quot;
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Ngày gửi: {new Date(req.createdAt).toLocaleDateString('vi-VN')}
+                        {req.reviewedBy && <span> • Người duyệt: <b>{req.reviewedBy}</b></span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trạng thái & Thao tác duyệt */}
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end text-xs">
+                    {/* Badge trạng thái */}
+                    {isApproved && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Đã Duyệt (Miễn Phạt)</span>
+                      </span>
+                    )}
+                    {isPending && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Chờ Duyệt</span>
+                      </span>
+                    )}
+                    {isRejected && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Từ Chối</span>
+                      </span>
+                    )}
+
+                    {/* Nút hành động */}
+                    {isPending && (
+                      <>
+                        <button
+                          onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                          disabled={isReviewingLeave === req.id}
+                          className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm active:scale-95"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Duyệt Miễn Phạt</span>
+                        </button>
+                        <button
+                          onClick={() => handleReviewLeaveRequest(req.id, 'REJECTED')}
+                          disabled={isReviewingLeave === req.id}
+                          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-800 transition"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Từ chối</span>
+                        </button>
+                      </>
+                    )}
+
+                    {!isPending && (
+                      <button
+                        onClick={() => handleReviewLeaveRequest(req.id, isApproved ? 'REJECTED' : 'APPROVED')}
+                        disabled={isReviewingLeave === req.id}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium transition"
+                      >
+                        {isApproved ? 'Hủy duyệt' : 'Duyệt lại'}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleDeleteLeaveRequest(req.id)}
+                      title="Xóa đơn này"
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
       </div>
 
       {/* ================= KHU VỰC 1: QUẢN LÝ CÁC ĐỘI ĐUA (TEAMS) ================= */}

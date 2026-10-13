@@ -7,11 +7,13 @@ import {
   deleteTeamAsync,
   saveUserAsync,
   deleteUserAsync,
+  saveLeaveRequestAsync,
+  deleteLeaveRequestAsync,
   getInitialDefaultData,
   syncLocalToUpstash,
 } from '@/lib/storage';
 import { isUpstashConfigured } from '@/lib/upstash';
-import { User, Team } from '@/types';
+import { User, Team, LeaveRequest } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,6 +157,66 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Thiếu mã thành viên (userId)' }, { status: 400 });
       }
       const success = await deleteUserAsync(userId);
+      return NextResponse.json({ success });
+    }
+
+    if (action === 'submit_leave_request') {
+      const { userId, weekNumber, reason, status, reviewerName } = body;
+      if (!userId || !weekNumber || !reason || !reason.trim()) {
+        return NextResponse.json({ error: 'Vui lòng cung cấp đầy đủ: thành viên, tuần và lý do nghỉ' }, { status: 400 });
+      }
+      const data = await loadDataAsync();
+      const user = data.users.find((u) => u.id === userId);
+      if (!user) {
+        return NextResponse.json({ error: 'Không tìm thấy thông tin thành viên' }, { status: 404 });
+      }
+
+      const existing = (data.leaveRequests || []).find(
+        (r) => r.userId === userId && r.weekNumber === Number(weekNumber)
+      );
+      const reqStatus = status === 'APPROVED' ? 'APPROVED' : 'PENDING';
+
+      const leaveReq: LeaveRequest = {
+        id: existing?.id || `leave-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
+        teamId: user.teamId,
+        weekNumber: Number(weekNumber),
+        reason: reason.trim(),
+        status: reqStatus,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        reviewedAt: reqStatus === 'APPROVED' ? new Date().toISOString() : undefined,
+        reviewedBy: reqStatus === 'APPROVED' ? (reviewerName || 'Ban Tổ Chức') : undefined,
+      };
+
+      const saved = await saveLeaveRequestAsync(leaveReq);
+      return NextResponse.json({ success: true, leaveRequest: saved });
+    }
+
+    if (action === 'review_leave_request') {
+      const { requestId, status, reviewerName } = body;
+      if (!requestId || !status || !['APPROVED', 'REJECTED'].includes(status)) {
+        return NextResponse.json({ error: 'Dữ liệu duyệt không hợp lệ' }, { status: 400 });
+      }
+      const data = await loadDataAsync();
+      const req = (data.leaveRequests || []).find((r) => r.id === requestId);
+      if (!req) {
+        return NextResponse.json({ error: 'Không tìm thấy đơn xin nghỉ' }, { status: 404 });
+      }
+      req.status = status;
+      req.reviewedAt = new Date().toISOString();
+      req.reviewedBy = reviewerName || 'Admin Trọng Tài';
+      const saved = await saveLeaveRequestAsync(req);
+      return NextResponse.json({ success: true, leaveRequest: saved });
+    }
+
+    if (action === 'delete_leave_request') {
+      const { requestId } = body;
+      if (!requestId) {
+        return NextResponse.json({ error: 'Thiếu mã đơn xin nghỉ (requestId)' }, { status: 400 });
+      }
+      const success = await deleteLeaveRequestAsync(requestId);
       return NextResponse.json({ success });
     }
 

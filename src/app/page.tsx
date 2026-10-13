@@ -11,6 +11,7 @@ import RunnerDetailModal from '@/components/RunnerDetailModal';
 import ChallengeRules from '@/components/ChallengeRules';
 import InstallAppModal from '@/components/InstallAppModal';
 import StravaOAuthModal from '@/components/StravaOAuthModal';
+import LeaveRequestModal from '@/components/LeaveRequestModal';
 import {
   Activity,
   Team,
@@ -21,6 +22,7 @@ import {
   OverallUserStat,
   OverallTeamStat,
   FinancialOverview,
+  LeaveRequest,
 } from '@/types';
 import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon } from 'lucide-react';
 
@@ -30,6 +32,7 @@ export default function HomePage() {
     teams: Team[];
     users: User[];
     activities: Activity[];
+    leaveRequests?: LeaveRequest[];
     userWeeklyStats: Record<string, UserWeeklyStat[]>;
     rankedTeamsByWeek: Record<number, TeamWeeklyStat[]>;
     overallUsers: { maleRankings: OverallUserStat[]; femaleRankings: OverallUserStat[] };
@@ -47,6 +50,9 @@ export default function HomePage() {
   const [connectedUser, setConnectedUser] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showStravaModal, setShowStravaModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveDefaultUserId, setLeaveDefaultUserId] = useState<string | undefined>(undefined);
+  const [leaveDefaultWeekNumber, setLeaveDefaultWeekNumber] = useState<number | undefined>(undefined);
 
   // Khởi tạo chế độ tối và kiểm tra phiên đăng nhập Strava
   useEffect(() => {
@@ -278,6 +284,11 @@ export default function HomePage() {
         onLogout={handleLogout}
         users={users}
         onConnectStrava={() => setShowStravaModal(true)}
+        onOpenLeaveModal={() => {
+          setLeaveDefaultUserId(connectedUser?.id);
+          setLeaveDefaultWeekNumber(selectedWeekNumber || 1);
+          setShowLeaveModal(true);
+        }}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -289,6 +300,11 @@ export default function HomePage() {
           financialOverview={financialOverview}
           onViewRules={() => setActiveTab('RULES')}
           onInstallApp={() => setShowInstallModal(true)}
+          onOpenLeaveModal={() => {
+            setLeaveDefaultUserId(connectedUser?.id);
+            setLeaveDefaultWeekNumber(selectedWeekNumber || 1);
+            setShowLeaveModal(true);
+          }}
         />
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
@@ -416,7 +432,12 @@ export default function HomePage() {
         )}
 
         {activeTab === 'ADMIN' && (
-          <AdminPanel teams={teams} users={users} onRefreshData={() => fetchData(true)} />
+          <AdminPanel
+            teams={teams}
+            users={users}
+            leaveRequests={data.leaveRequests || []}
+            onRefreshData={() => fetchData(true)}
+          />
         )}
       </main>
 
@@ -434,8 +455,25 @@ export default function HomePage() {
           onUpdateActivity={handleUpdateActivity}
           onDeleteActivity={handleDeleteActivity}
           onDeleteUser={handleDeleteUser}
+          onRequestLeave={(u, weekNum) => {
+            setLeaveDefaultUserId(u.id);
+            setLeaveDefaultWeekNumber(weekNum || selectedWeekNumber || 1);
+            setShowLeaveModal(true);
+          }}
         />
       )}
+
+      {/* Modal Xin Nghỉ Tuần (Bất khả kháng) */}
+      <LeaveRequestModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        users={users}
+        weeks={weeks}
+        leaveRequests={data.leaveRequests || []}
+        defaultUserId={leaveDefaultUserId}
+        defaultWeekNumber={leaveDefaultWeekNumber}
+        onRefreshData={() => fetchData(true)}
+      />
 
       {/* Modal Hướng Dẫn Cài Đặt App */}
       <InstallAppModal

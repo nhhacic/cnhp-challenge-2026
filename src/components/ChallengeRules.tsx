@@ -563,6 +563,9 @@ export default function ChallengeRules() {
                     <strong>Lệ phí rút giải:</strong> Trường hợp thành viên muốn rút khỏi challenge vì bất cứ lý do gì (trừ trường hợp bất khả kháng như chấn thương, ốm nằm viện) thì phải nộp cho BTC <strong className="text-rose-600 dark:text-rose-400">500.000 vnđ</strong> lệ phí rút khỏi challenge.
                   </li>
                   <li>
+                    <strong>🌴 Tạm nghỉ tuần do bất khả kháng:</strong> Thành viên gặp sự cố bất khả kháng (chấn thương có chỉ định bác sĩ, ốm sốt nằm viện, công tác đặc biệt không thể chạy...) gửi đơn xin tạm nghỉ trên website để Admin / Trọng tài duyệt. Sau khi được duyệt: tuần đó được miễn hoàn toàn chỉ tiêu (0km, 0 buổi, không phạt 100k, không phát sinh nợ gối đầu) và điểm bình quân đội đua được tính trên số thành viên thi đấu thực tế để bảo vệ quyền lợi đội đua.
+                  </li>
+                  <li>
                     Trong quá trình thực hiện nếu có điều chưa hợp lý, Ban tổ chức sẽ điều chỉnh thay đổi quy chế cho phù hợp.
                   </li>
                   <li>

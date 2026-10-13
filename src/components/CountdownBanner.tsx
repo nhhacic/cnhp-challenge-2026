@@ -12,6 +12,7 @@ interface CountdownBannerProps {
   financialOverview: FinancialOverview;
   onViewRules?: () => void;
   onInstallApp?: () => void;
+  onOpenLeaveModal?: () => void;
 }
 
 export default function CountdownBanner({
@@ -21,6 +22,7 @@ export default function CountdownBanner({
   financialOverview,
   onViewRules,
   onInstallApp,
+  onOpenLeaveModal,
 }: CountdownBannerProps) {
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-5 sm:p-7 shadow-xl mb-6 sm:mb-8 relative overflow-hidden border border-orange-500/20">
@@ -102,6 +104,15 @@ export default function CountdownBanner({
                   className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 transition-all active:scale-95 font-bold"
                 >
                   📱 Cài App
+                </button>
+              )}
+              {onOpenLeaveModal && (
+                <button
+                  onClick={onOpenLeaveModal}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center gap-1 transition-all active:scale-95 font-bold"
+                  title="Xin tạm nghỉ chạy tuần vì lý do bất khả kháng"
+                >
+                  🌴 Xin Nghỉ Tuần
                 </button>
               )}
             </div>

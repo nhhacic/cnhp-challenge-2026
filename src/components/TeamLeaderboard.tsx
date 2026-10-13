@@ -296,6 +296,7 @@ export default function TeamLeaderboard({
                     {teamMembers.map((member) => {
                       let memberActualKm = 0;
                       let daysRun = 0;
+                      let isExcused = false;
 
                       if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
                         const stats = userWeeklyStatsMap[member.id] || [];
@@ -303,6 +304,7 @@ export default function TeamLeaderboard({
                         if (stat) {
                           memberActualKm = stat.actualKm;
                           daysRun = stat.totalDaysRun;
+                          isExcused = Boolean(stat.isExcused);
                         }
                       } else if (userWeeklyStatsMap) {
                         const stats = userWeeklyStatsMap[member.id] || [];
@@ -332,8 +334,14 @@ export default function TeamLeaderboard({
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-slate-500">
-                                {member.gender === 'MALE' ? 'Nam' : 'Nữ'} • {daysRun} buổi
+                              <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                                <span>{member.gender === 'MALE' ? 'Nam' : 'Nữ'}</span>
+                                <span>•</span>
+                                {isExcused ? (
+                                  <span className="text-amber-600 dark:text-amber-400 font-bold">🌴 Nghỉ bất khả kháng</span>
+                                ) : (
+                                  <span>{daysRun} buổi</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -475,53 +483,61 @@ export default function TeamLeaderboard({
                             </h4>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {teamMembers.map((member) => {
-                                let memberActualKm = 0;
-                                let memberCappedKm = 0;
-                                let daysRun = 0;
+                                {teamMembers.map((member) => {
+                                  let memberActualKm = 0;
+                                  let memberCappedKm = 0;
+                                  let daysRun = 0;
+                                  let isExcused = false;
 
-                                if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
-                                  const stats = userWeeklyStatsMap[member.id] || [];
-                                  const stat = stats.find((s) => s.weekNumber === currentWeekNumber);
-                                  if (stat) {
-                                    memberActualKm = stat.actualKm;
-                                    memberCappedKm = stat.cappedKm;
-                                    daysRun = stat.totalDaysRun;
+                                  if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
+                                    const stats = userWeeklyStatsMap[member.id] || [];
+                                    const stat = stats.find((s) => s.weekNumber === currentWeekNumber);
+                                    if (stat) {
+                                      memberActualKm = stat.actualKm;
+                                      memberCappedKm = stat.cappedKm;
+                                      daysRun = stat.totalDaysRun;
+                                      isExcused = Boolean(stat.isExcused);
+                                    }
+                                  } else if (userWeeklyStatsMap) {
+                                    const stats = userWeeklyStatsMap[member.id] || [];
+                                    memberActualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
+                                    memberCappedKm = stats.reduce((sum, s) => sum + s.cappedKm, 0);
+                                    daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
                                   }
-                                } else if (userWeeklyStatsMap) {
-                                  const stats = userWeeklyStatsMap[member.id] || [];
-                                  memberActualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
-                                  memberCappedKm = stats.reduce((sum, s) => sum + s.cappedKm, 0);
-                                  daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
-                                }
 
-                                const isOverCapped = memberActualKm > 40;
+                                  const isOverCapped = memberActualKm > 40;
 
-                                return (
-                                  <div
-                                    key={member.id}
-                                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between"
-                                  >
-                                    <div className="flex items-center space-x-2.5">
-                                      <img
-                                        src={member.avatar}
-                                        alt={member.name}
-                                        className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                                      />
-                                      <div>
-                                        <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1">
-                                          {member.name}
-                                          {member.isCaptain && (
-                                            <span className="text-[10px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
-                                              Captain
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="text-[11px] text-slate-500">
-                                          {member.gender === 'MALE' ? 'Nam' : 'Nữ'} • {daysRun} buổi chạy
+                                  return (
+                                    <div
+                                      key={member.id}
+                                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center space-x-2.5">
+                                        <img
+                                          src={member.avatar}
+                                          alt={member.name}
+                                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                                        />
+                                        <div>
+                                          <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1">
+                                            {member.name}
+                                            {member.isCaptain && (
+                                              <span className="text-[10px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                                                Captain
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                                            <span>{member.gender === 'MALE' ? 'Nam' : 'Nữ'}</span>
+                                            <span>•</span>
+                                            {isExcused ? (
+                                              <span className="text-amber-600 dark:text-amber-400 font-bold">🌴 Nghỉ bất khả kháng</span>
+                                            ) : (
+                                              <span>{daysRun} buổi chạy</span>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
 
                                     <div className="text-right">
                                       <div className="font-extrabold text-sm text-slate-900 dark:text-white">

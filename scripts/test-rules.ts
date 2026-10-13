@@ -223,6 +223,35 @@ assert(
 assert(rankedTeams[0].rewardAmount === 150000, 'Đội đứng nhất tuần nhận thưởng 150.000đ');
 assert(rankedTeams[1].rewardAmount === 100000, 'Đội đứng nhì tuần nhận thưởng 100.000đ');
 
+// ----------------------------------------------------
+// TEST NHÓM 4: MIỄN CHỈ TIÊU VÌ LÝ DO BẤT KHẢ KHÁNG (FORCE MAJEURE)
+// ----------------------------------------------------
+console.log('\n--- NHÓM 4: Miễn chỉ tiêu vì lý do bất khả kháng (Force Majeure) ---');
+
+// 4.1 Thành viên được duyệt nghỉ bất khả kháng: 0km, 0 buổi -> miễn phạt 100%, không nợ gối đầu
+const statExcused = calculateUserWeeklyStat('u-injured', testWeek, [], 0, true, true, 'Chấn thương đầu gối');
+assert(statExcused.isExcused === true, 'Xác nhận trạng thái được miễn nghỉ bất khả kháng');
+assert(statExcused.isCompleted === true, 'Hoàn thành trạng thái tuần (không bị đánh trượt)');
+assert(statExcused.totalPenaltyAmount === 0, 'Miễn toàn bộ tiền phạt (phạt = 0đ)');
+assert(statExcused.rolledOverToNextWeek === 0, 'Không phát sinh nợ km gối đầu sang tuần tiếp theo');
+
+// 4.2 Bảo vệ điểm đội đua: 1 thành viên chạy 30km + 1 thành viên nghỉ bất khả kháng (0km)
+// Điểm bình quân của đội không bị chia đôi (phải giữ 30km thay vì tụt xuống 15km)
+const activeRunner: UserWeeklyStat = {
+  ...stat1,
+  userId: 'runner-active',
+  actualKm: 30,
+  cappedKm: 30,
+};
+const excusedRunner: UserWeeklyStat = {
+  ...statExcused,
+  userId: 'runner-injured',
+  actualKm: 0,
+  cappedKm: 0,
+};
+const teamWithExcused = calculateTeamWeeklyStats(teamA, testWeek, [activeRunner, excusedRunner]);
+assert(teamWithExcused.averageCappedKmPerMember === 30, 'Điểm bình quân Team tính trên quân số thực tế (30km, không tụt xuống 15km)');
+
 console.log('\n========================================================');
 console.log(`📊 TỔNG KẾT: ${passCount} PASSED, ${failCount} FAILED`);
 console.log('========================================================\n');

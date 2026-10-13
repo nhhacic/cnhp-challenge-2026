@@ -32,6 +32,7 @@ interface RunnerDetailModalProps {
   onUpdateActivity: (activity: Activity) => void;
   onDeleteActivity: (activityId: string) => void;
   onDeleteUser?: (userId: string) => void;
+  onRequestLeave?: (user: User, weekNumber?: number) => void;
 }
 
 export default function RunnerDetailModal({
@@ -46,6 +47,7 @@ export default function RunnerDetailModal({
   onUpdateActivity,
   onDeleteActivity,
   onDeleteUser,
+  onRequestLeave,
 }: RunnerDetailModalProps) {
   const [editingActId, setEditingActId] = useState<string | null>(null);
   const [lagKmInput, setLagKmInput] = useState<string>('');
@@ -122,7 +124,11 @@ export default function RunnerDetailModal({
                   {team?.name}
                 </span>
                 •
-                {currentWeekStats && currentWeekStats.totalPenaltyAmount > 0 ? (
+                {currentWeekStats?.isExcused ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    🌴 Nghỉ bất khả kháng (Miễn phạt)
+                  </span>
+                ) : currentWeekStats && currentWeekStats.totalPenaltyAmount > 0 ? (
                   <span className="text-rose-600 dark:text-rose-400 font-bold">
                     Phạt tuần: {formatCurrency(currentWeekStats.totalPenaltyAmount)}
                   </span>
@@ -136,6 +142,17 @@ export default function RunnerDetailModal({
           </div>
 
           <div className="flex items-center space-x-2">
+            {onRequestLeave && (
+              <button
+                onClick={() => onRequestLeave(user, selectedWeek?.weekNumber)}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800 transition-all active:scale-95"
+                title="Gửi đơn xin tạm nghỉ chạy tuần này vì lý do bất khả kháng"
+              >
+                <span>🌴</span>
+                <span>Xin nghỉ tuần</span>
+              </button>
+            )}
+
             {isAdmin && onDeleteUser && (
               <button
                 onClick={() => {
@@ -175,7 +192,11 @@ export default function RunnerDetailModal({
                     <Calendar className="w-4 h-4" />
                     Tiến Độ {selectedWeek.name}
                   </span>
-                  {currentWeekStats.isCompleted ? (
+                  {currentWeekStats.isExcused ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm">
+                      🌴 Miễn Chỉ Tiêu (Bất Khả Kháng)
+                    </span>
+                  ) : currentWeekStats.isCompleted ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white">
                       <CheckCircle className="w-3.5 h-3.5" />
                       Đã Hoàn Thành
@@ -187,6 +208,13 @@ export default function RunnerDetailModal({
                     </span>
                   )}
                 </div>
+
+                {currentWeekStats.isExcused && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs border border-amber-200 dark:border-amber-800">
+                    <span className="font-bold">🌴 Đã được duyệt nghỉ bất khả kháng:</span>{' '}
+                    <span>{currentWeekStats.leaveReason || 'Miễn hoàn toàn chỉ tiêu chạy tuần này, không tính tiền phạt và không nợ km gối đầu.'}</span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">

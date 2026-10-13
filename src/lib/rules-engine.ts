@@ -117,7 +117,9 @@ export function calculateUserWeeklyStat(
   week: Week,
   userActivities: Activity[],
   previousDeficitKm: number = 0,
-  isEvaluated: boolean = true
+  isEvaluated: boolean = true,
+  isExcused: boolean = false,
+  leaveReason?: string
 ): UserWeeklyStat {
   // Lọc các bài chạy hợp lệ và diễn ra trong tuần
   const weekStart = week.startDate; // YYYY-MM-DD
@@ -147,6 +149,35 @@ export function calculateUserWeeklyStat(
 
   // Áp dụng trần 40km cho tập thể
   const cappedKm = Math.min(RULES.WEEKLY_TEAM_CAP_KM, actualKm);
+
+  // Nếu thành viên được Ban Tổ Chức duyệt nghỉ vì lý do bất khả kháng:
+  // Miễn hoàn toàn chỉ tiêu tuần, không phạt tiền, không phạt thiếu buổi, không chuyển nợ sang tuần sau.
+  if (isExcused) {
+    return {
+      userId,
+      weekNumber: week.weekNumber,
+      validActivitiesCount: validActivitiesInWeek.length,
+      uniqueRunDays,
+      totalDaysRun,
+      actualKm,
+      cappedKm,
+      baseTargetKm: 0,
+      previousDeficitKm: 0,
+      totalTargetKm: 0,
+      deficitKm: 0,
+      roundedDeficitKm: 0,
+      missingDays: 0,
+      penaltyKmAmount: 0,
+      penaltyDaysAmount: 0,
+      totalPenaltyAmount: 0,
+      totalMovingTimeSec,
+      averagePaceSeconds: actualKm > 0 ? Math.round(totalMovingTimeSec / actualKm) : 0,
+      isCompleted: true,
+      rolledOverToNextWeek: 0,
+      isExcused: true,
+      leaveReason,
+    };
+  }
 
   // Chỉ tiêu tuần
   const baseTargetKm = RULES.WEEKLY_MIN_KM;
@@ -210,6 +241,7 @@ export function calculateUserWeeklyStat(
     averagePaceSeconds,
     isCompleted,
     rolledOverToNextWeek,
+    isExcused: false,
   };
 }
 
@@ -238,8 +270,12 @@ export function calculateTeamWeeklyStats(
   totalActualKm = Math.round(totalActualKm * 100) / 100;
   totalCappedKm = Math.round(totalCappedKm * 100) / 100;
 
+  // Nếu có thành viên được duyệt nghỉ và không chạy, không tính vào số chia của Team để bảo vệ quyền lợi đồng đội
+  const activeMembers = membersWeeklyStats.filter((m) => !m.isExcused || m.actualKm > 0);
+  const effectiveMemberCount = activeMembers.length > 0 ? activeMembers.length : memberCount;
+
   const averageCappedKmPerMember =
-    memberCount > 0 ? Math.round((totalCappedKm / memberCount) * 100) / 100 : 0;
+    effectiveMemberCount > 0 ? Math.round((totalCappedKm / effectiveMemberCount) * 100) / 100 : 0;
 
   const averagePaceSeconds =
     totalActualKm > 0 ? totalMovingTimeSec / totalActualKm : 0;

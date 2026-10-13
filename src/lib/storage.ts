@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Activity, Team, User, Week } from '@/types';
+import { Activity, Team, User, Week, LeaveRequest } from '@/types';
 import { validateActivity } from './rules-engine';
 import { getRedisClient, isUpstashConfigured } from './upstash';
 
@@ -16,6 +16,7 @@ export interface ChallengeData {
   teams: Team[];
   users: User[];
   activities: Activity[];
+  leaveRequests?: LeaveRequest[];
 }
 
 declare global {
@@ -80,6 +81,7 @@ export function getInitialDefaultData(): ChallengeData {
     teams,
     users,
     activities: [],
+    leaveRequests: [],
   };
 }
 
@@ -91,12 +93,14 @@ export function loadData(): ChallengeData {
     if (fs.existsSync(TMP_FILE)) {
       const raw = fs.readFileSync(TMP_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+      if (!parsed.leaveRequests) parsed.leaveRequests = [];
       globalThis.__challengeData = parsed;
       return parsed;
     }
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+      if (!parsed.leaveRequests) parsed.leaveRequests = [];
       globalThis.__challengeData = parsed;
       return parsed;
     }
@@ -136,6 +140,7 @@ export async function loadDataAsync(): Promise<ChallengeData> {
       if (redis) {
         const cloudData = await redis.get<ChallengeData>(REDIS_KEY);
         if (cloudData && cloudData.teams && cloudData.users) {
+          if (!cloudData.leaveRequests) cloudData.leaveRequests = [];
           globalThis.__challengeData = cloudData;
           saveData(cloudData); // đồng bộ vào cache local file/tmp
           return cloudData;
@@ -264,6 +269,33 @@ export async function deleteTeamAsync(teamId: string): Promise<{ success: boolea
   data.teams.splice(targetIndex, 1);
   await saveDataAsync(data);
   return { success: true, message: 'Đã xóa đội thành công!' };
+}
+
+export async function saveLeaveRequestAsync(request: LeaveRequest): Promise<LeaveRequest> {
+  const data = await loadDataAsync();
+  if (!data.leaveRequests) {
+    data.leaveRequests = [];
+  }
+  const index = data.leaveRequests.findIndex((r) => r.id === request.id);
+  if (index >= 0) {
+    data.leaveRequests[index] = { ...data.leaveRequests[index], ...request };
+  } else {
+    data.leaveRequests.push(request);
+  }
+  await saveDataAsync(data);
+  return request;
+}
+
+export async function deleteLeaveRequestAsync(id: string): Promise<boolean> {
+  const data = await loadDataAsync();
+  if (!data.leaveRequests) return false;
+  const initLen = data.leaveRequests.length;
+  data.leaveRequests = data.leaveRequests.filter((r) => r.id !== id);
+  if (data.leaveRequests.length !== initLen) {
+    await saveDataAsync(data);
+    return true;
+  }
+  return false;
 }
 
 export async function syncLocalToFirebase(): Promise<{ success: boolean; message: string }> {

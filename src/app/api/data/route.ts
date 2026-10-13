@@ -18,6 +18,15 @@ export async function GET() {
   try {
     const data = await loadDataAsync();
     const { weeks, teams, users, activities } = data;
+    const leaveRequests = data.leaveRequests || [];
+
+    // Danh sách các đơn xin nghỉ đã được Admin duyệt
+    const approvedLeavesMap = new Map<string, any>();
+    for (const req of leaveRequests) {
+      if (req.status === 'APPROVED') {
+        approvedLeavesMap.set(`${req.userId}_${req.weekNumber}`, req);
+      }
+    }
 
     // Xác định các tuần đã chốt kết quả (đã kết thúc hoặc được Admin khóa chốt)
     // Phạt nợ và tiền phạt chỉ chính thức phát sinh đối với các tuần đã kết thúc/khóa
@@ -39,7 +48,10 @@ export async function GET() {
 
       for (const week of weeks) {
         const isEvaluated = evaluatedWeeksSet.has(week.weekNumber);
-        const stat = calculateUserWeeklyStat(user.id, week, userActs, previousDeficit, isEvaluated);
+        const leave = approvedLeavesMap.get(`${user.id}_${week.weekNumber}`);
+        const isExcused = Boolean(leave);
+        const leaveReason = leave?.reason;
+        const stat = calculateUserWeeklyStat(user.id, week, userActs, previousDeficit, isEvaluated, isExcused, leaveReason);
         userStats.push(stat);
         if (isEvaluated) {
           allUserWeeklyStats.push(stat);
@@ -109,6 +121,7 @@ export async function GET() {
         teams,
         users,
         activities,
+        leaveRequests,
         userWeeklyStats: Object.fromEntries(userWeeklyStatsMap),
         rankedTeamsByWeek,
         overallUsers: {

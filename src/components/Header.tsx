@@ -19,6 +19,7 @@ interface HeaderProps {
   onLogout?: () => void;
   users?: User[];
   onConnectStrava?: () => void;
+  onOpenLeaveModal?: () => void;
 }
 
 export default function Header({
@@ -35,6 +36,7 @@ export default function Header({
   onLogout,
   users = [],
   onConnectStrava,
+  onOpenLeaveModal,
 }: HeaderProps) {
   const [showInstallModal, setShowInstallModal] = useState(false);
 
@@ -138,6 +140,18 @@ export default function Header({
                 {isAdmin ? 'Admin' : 'Trọng tài'}
               </span>
             </button>
+
+            {/* Nút Xin Nghỉ Tuần (Bất khả kháng) */}
+            {onOpenLeaveModal && (
+              <button
+                onClick={onOpenLeaveModal}
+                title="Xin tạm nghỉ chạy tuần vì lý do bất khả kháng (chấn thương, ốm đau...)"
+                className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl transition-all active:scale-95"
+              >
+                <span className="text-sm">🌴</span>
+                <span className="text-xs font-bold">Xin Nghỉ</span>
+              </button>
+            )}
 
             {/* Nút Cài đặt App Mobile */}
             <button
