@@ -69,7 +69,7 @@ export default function ChallengeRules() {
 
   const handleCopySummary = () => {
     const text = `🏆 THỂ LỆ CHALLENGE "THU ĐÔNG 2026" - CNHP RUNNING CLUB
-⏱️ Thời gian: 00h 11/10/2026 - 24h 06/12/2026 (Thứ 2 - Chủ Nhật hàng tuần)
+⏱️ Thời gian: 00h 12/10/2026 - 24h 06/12/2026 (Thứ 2 - Chủ Nhật hàng tuần)
 👥 Phí tham dự: 200.000đ/người
 🎯 Chỉ tiêu tuần: Tối thiểu 15km/tuần và 3 buổi chạy/tuần
 🛡️ Trần tích lũy Team: Tối đa 40km/tuần/người (Cá nhân tính bình thường)
@@ -105,7 +105,7 @@ export default function ChallengeRules() {
               Thể Lệ Challenge “Thu Đông 2026”
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Quy chế thi đấu, tiêu chuẩn bài chạy, hệ thống tính thưởng/phạt và cơ chế chuyển nợ km áp dụng từ ngày <strong>11/10/2026</strong> đến <strong>06/12/2026</strong>.
+              Quy chế thi đấu, tiêu chuẩn bài chạy, hệ thống tính thưởng/phạt và cơ chế chuyển nợ km áp dụng từ ngày <strong>12/10/2026</strong> đến <strong>06/12/2026</strong>.
             </p>
           </div>
 
@@ -198,7 +198,7 @@ export default function ChallengeRules() {
                     Thời gian diễn ra Challenge
                   </div>
                   <ul className="text-xs space-y-1.5 list-disc list-inside text-slate-600 dark:text-slate-400">
-                    <li><strong>Bắt đầu:</strong> 00h00 ngày <strong>11/10/2026</strong></li>
+                    <li><strong>Bắt đầu:</strong> 00h00 ngày <strong>12/10/2026</strong></li>
                     <li><strong>Kết thúc:</strong> 24h00 ngày <strong>06/12/2026</strong></li>
                     <li><strong>Quy ước tuần:</strong> Bắt đầu từ Thứ 2 và kết thúc vào Chủ Nhật.</li>
                     <li><strong>Quy ước ngày:</strong> Bắt đầu vào 00h và kết thúc vào 24h cùng ngày.</li>

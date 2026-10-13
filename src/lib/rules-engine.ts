@@ -71,6 +71,12 @@ export function validateActivity(activity: Activity): { isValid: boolean; invali
   const invalidReasons: string[] = [];
   const effectiveDistance = Math.max(0, activity.distanceKm - (activity.lagKmDeducted || 0));
 
+  // Kiểm tra thời gian bắt đầu giải: 00h00 ngày 12/10/2026 (GMT+7)
+  const challengeStartTime = new Date('2026-10-12T00:00:00+07:00').getTime();
+  if (activity.startDate && new Date(activity.startDate).getTime() < challengeStartTime) {
+    invalidReasons.push('Bài chạy diễn ra trước thời gian khai mạc giải (00h00 ngày 12/10/2026)');
+  }
+
   // Kiểm tra cự ly tối thiểu >= 1.0 km
   if (effectiveDistance < RULES.MIN_DISTANCE_PER_ACTIVITY_KM) {
     invalidReasons.push(`Cự ly sau khi trừ lag (${effectiveDistance.toFixed(2)} km) dưới 1.0 km`);

@@ -96,6 +96,17 @@ const lagAct: Activity = {
 const res7 = validateActivity(lagAct);
 assert(!res7.isValid, 'Bài chạy 1.5km bị lag trừ 0.7km còn 0.8km sẽ bị loại');
 
+// 1.7 Bài chạy diễn ra trước 00h00 ngày 12/10/2026 -> Không hợp lệ
+const earlyAct: Activity = {
+  ...baseActivity,
+  startDate: '2026-10-11T23:59:00+07:00', // 23h59 ngày 11/10 (trước 00h ngày 12/10)
+};
+const res8 = validateActivity(earlyAct);
+assert(
+  !res8.isValid && res8.invalidReasons.some((r) => r.includes('trước thời gian khai mạc')),
+  'Bài chạy diễn ra trước 00h00 ngày 12/10/2026 bị loại'
+);
+
 // ----------------------------------------------------
 // TEST NHÓM 2: TÍNH TOÁN TUẦN VẬN ĐỘNG VIÊN & PHẠT / CHẠY BÙ
 // ----------------------------------------------------

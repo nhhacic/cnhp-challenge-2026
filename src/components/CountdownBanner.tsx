@@ -50,7 +50,7 @@ export default function CountdownBanner({
             <span>
               {currentWeek
                 ? `Thời gian: ${currentWeek.startDate} đến 24h ${currentWeek.endDate}`
-                : 'Diễn ra từ 11/10/2026 đến 06/12/2026 (8 Tuần)'}
+                : 'Diễn ra từ 12/10/2026 đến 06/12/2026 (8 Tuần)'}
             </span>
           </div>
         </div>

@@ -256,7 +256,10 @@ export default function HomePage() {
   const isOverall = selectedWeekNumber === null;
   const currentWeek = !isOverall ? weeks.find((w) => w.weekNumber === selectedWeekNumber) || null : null;
   const weeklyRankedTeams = !isOverall && selectedWeekNumber ? rankedTeamsByWeek[selectedWeekNumber] || [] : [];
-  const totalKmAll = activities.filter((a) => a.isValid).reduce((sum, a) => sum + a.effectiveKm, 0);
+  const CHALLENGE_START_TIME = new Date('2026-10-12T00:00:00+07:00').getTime();
+  const totalKmAll = activities
+    .filter((a) => a.isValid && new Date(a.startDate).getTime() >= CHALLENGE_START_TIME)
+    .reduce((sum, a) => sum + a.effectiveKm, 0);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
@@ -448,7 +451,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
         <p>
-          Challenge CNHP Thu Đông 2026 • 11/10/2026 đến 06/12/2026 • Câu lạc bộ CNHP Running Club
+          Challenge CNHP Thu Đông 2026 • 12/10/2026 đến 06/12/2026 • Câu lạc bộ CNHP Running Club
         </p>
         <p className="mt-1 text-[11px] text-slate-400">
           Tự động hóa 100% thể lệ: Cap 40km đồng đội • Pace chậm hơn thắng khi hòa km • Nợ chạy bù tuần kế tiếp

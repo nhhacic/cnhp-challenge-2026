@@ -29,7 +29,7 @@ const REDIS_KEY = 'cnhp_challenge_data_2026';
 
 export function getInitialDefaultData(): ChallengeData {
   const weeks: Week[] = [
-    { weekNumber: 1, name: 'Tuần 1', startDate: '2026-10-11', endDate: '2026-10-18', isFinalWeek: false, isLocked: true },
+    { weekNumber: 1, name: 'Tuần 1', startDate: '2026-10-12', endDate: '2026-10-18', isFinalWeek: false, isLocked: false },
     { weekNumber: 2, name: 'Tuần 2', startDate: '2026-10-19', endDate: '2026-10-25', isFinalWeek: false, isLocked: false },
     { weekNumber: 3, name: 'Tuần 3', startDate: '2026-10-26', endDate: '2026-11-01', isFinalWeek: false, isLocked: false },
     { weekNumber: 4, name: 'Tuần 4', startDate: '2026-11-02', endDate: '2026-11-08', isFinalWeek: false, isLocked: false },
@@ -71,8 +71,8 @@ export function getInitialDefaultData(): ChallengeData {
   return {
     challenge: {
       name: 'Challenge CNHP Thu Đông 2026',
-      description: 'Giải chạy nội bộ CNHP Running Club mùa Thu Đông 2026 (11/10/2026 - 06/12/2026)',
-      startDate: '2026-10-11',
+      description: 'Giải chạy nội bộ CNHP Running Club mùa Thu Đông 2026 (12/10/2026 - 06/12/2026)',
+      startDate: '2026-10-12',
       endDate: '2026-12-06',
       entryFee: 200000,
     },

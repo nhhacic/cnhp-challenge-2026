@@ -64,7 +64,7 @@ export default function Header({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden lg:block">
-                CNHP Running Club • 11/10/2026 - 06/12/2026
+                CNHP Running Club • 12/10/2026 - 06/12/2026
               </p>
             </div>
           </div>

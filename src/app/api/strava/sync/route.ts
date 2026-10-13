@@ -30,8 +30,12 @@ export async function POST(req: NextRequest) {
 
           if (!user.stravaAccessToken) continue;
 
-          // 2. Gọi Strava API lấy các activity
-          let res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
+          // 2. Chỉ đồng bộ các hoạt động diễn ra từ 00:00 ngày 12/10/2026 (GMT+7)
+          const challengeStartEpoch = Math.floor(new Date('2026-10-12T00:00:00+07:00').getTime() / 1000);
+          const stravaUrl = `https://www.strava.com/api/v3/athlete/activities?after=${challengeStartEpoch}&per_page=100`;
+
+          // Gọi Strava API lấy các activity
+          let res = await fetch(stravaUrl, {
             headers: {
               Authorization: `Bearer ${user.stravaAccessToken}`,
             },
@@ -47,7 +51,7 @@ export async function POST(req: NextRequest) {
               user.stravaTokenExpiresAt = retryToken.expiresAt;
               await saveUserAsync(user);
 
-              res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50', {
+              res = await fetch(stravaUrl, {
                 headers: {
                   Authorization: `Bearer ${user.stravaAccessToken}`,
                 },
@@ -58,6 +62,13 @@ export async function POST(req: NextRequest) {
           if (res.ok) {
             const activities = await res.json();
             for (const item of activities) {
+              // Bỏ qua các bài chạy trước 00h ngày 12/10/2026
+              const actTime = new Date(item.start_date).getTime();
+              const challengeStartTime = new Date('2026-10-12T00:00:00+07:00').getTime();
+              if (actTime < challengeStartTime) {
+                continue;
+              }
+
               const typeStr = item.type || item.sport_type;
               let actType: ActivityType = 'Run';
               let isTrailOrHike = false;
