@@ -11,6 +11,8 @@ import {
 import { TeamWeeklyStat, UserWeeklyStat, FinancialOverview } from '@/types';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export async function GET() {
   try {
@@ -100,21 +102,28 @@ export async function GET() {
       remainingFund,
     };
 
-    return NextResponse.json({
-      challenge: data.challenge,
-      weeks,
-      teams,
-      users,
-      activities,
-      userWeeklyStats: Object.fromEntries(userWeeklyStatsMap),
-      rankedTeamsByWeek,
-      overallUsers: {
-        maleRankings,
-        femaleRankings,
+    return NextResponse.json(
+      {
+        challenge: data.challenge,
+        weeks,
+        teams,
+        users,
+        activities,
+        userWeeklyStats: Object.fromEntries(userWeeklyStatsMap),
+        rankedTeamsByWeek,
+        overallUsers: {
+          maleRankings,
+          femaleRankings,
+        },
+        overallTeams,
+        financialOverview,
       },
-      overallTeams,
-      financialOverview,
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    );
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu /api/data:', error);
     return NextResponse.json({ error: 'Không thể tải dữ liệu' }, { status: 500 });
