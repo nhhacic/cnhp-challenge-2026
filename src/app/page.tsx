@@ -186,7 +186,11 @@ export default function HomePage() {
       });
       const resJson = await res.json();
       if (res.ok) {
-        alert(resJson.message || 'Đã đồng bộ thành công!');
+        let msg = resJson.message || 'Đã đồng bộ thành công!';
+        if (resJson.warnings && resJson.warnings.length > 0) {
+          msg += '\n\n⚠️ Lưu ý:\n' + resJson.warnings.join('\n');
+        }
+        alert(msg);
         fetchData();
       }
     } catch (err) {

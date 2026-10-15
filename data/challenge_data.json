@@ -175,7 +175,8 @@
       "teamId": "team-3",
       "isCaptain": false,
       "isPaidFee": false,
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "stravaScopeMissing": true
     },
     {
       "id": "user-135928697",
@@ -373,5 +374,6 @@
       "isValid": true,
       "invalidReasons": []
     }
-  ]
+  ],
+  "leaveRequests": []
 }

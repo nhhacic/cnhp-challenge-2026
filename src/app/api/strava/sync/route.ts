@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
     const usersToSync = userId ? data.users.filter((u) => u.id === userId) : data.users;
 
     let syncedCount = 0;
+    const warnings: string[] = [];
 
     for (const user of usersToSync) {
       if (user.stravaAccessToken || user.stravaRefreshToken) {
@@ -59,63 +60,82 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          if (res.ok) {
-            const activities = await res.json();
-            for (const item of activities) {
-              // Bỏ qua các bài chạy trước 00h ngày 12/10/2026
-              const actTime = new Date(item.start_date).getTime();
-              const challengeStartTime = new Date('2026-10-12T00:00:00+07:00').getTime();
-              if (actTime < challengeStartTime) {
-                continue;
-              }
-
-              const typeStr = item.type || item.sport_type;
-              let actType: ActivityType = 'Run';
-              let isTrailOrHike = false;
-
-              if (typeStr === 'TrailRun') {
-                actType = 'TrailRun';
-                isTrailOrHike = true;
-              } else if (typeStr === 'Hike') {
-                actType = 'Hike';
-                isTrailOrHike = true;
-              } else if (typeStr === 'Walk') {
-                actType = 'Walk';
-                isTrailOrHike = true;
-              }
-
-              const distanceKm = Math.round((item.distance / 1000) * 100) / 100;
-              const movingTimeSec = item.moving_time || 0;
-              const averagePaceSeconds = distanceKm > 0 ? Math.round(movingTimeSec / distanceKm) : 0;
-
-              const act: Activity = {
-                id: `strava-${item.id}`,
-                userId: user.id,
-                stravaActivityId: String(item.id),
-                title: item.name || 'Hoạt động Strava',
-                type: actType,
-                distanceKm,
-                movingTimeSec,
-                elapsedTimeSec: item.elapsed_time || movingTimeSec,
-                averagePaceSeconds,
-                elevationGain: item.total_elevation_gain || 0,
-                startDate: item.start_date || new Date().toISOString(),
-                summaryPolyline: item.map?.summary_polyline || '',
-                lagKmDeducted: 0,
-                effectiveKm: distanceKm,
-                isTrailOrHike,
-                isValid: true,
-                invalidReasons: [],
-              };
-
-              // Kiểm duyệt thể lệ giải CNHP
-              const validation = validateActivity(act);
-              act.isValid = validation.isValid;
-              act.invalidReasons = validation.invalidReasons;
-
-              await saveActivityAsync(act);
-              syncedCount++;
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            const isMissingScope = errData?.errors?.some(
+              (e: any) => e.field === 'activity:read_permission' || e.code === 'missing'
+            );
+            if (isMissingScope) {
+              user.stravaScopeMissing = true;
+              await saveUserAsync(user);
+              warnings.push(
+                `VĐV ${user.name} (Strava ID: ${user.stravaId || user.id}) chưa cấp quyền 'Xem hoạt động' trên Strava. Cần bấm 'Kết nối Strava' và tích chọn ô hoạt động.`
+              );
             }
+            continue;
+          }
+
+          // Khi gọi thành công, xóa cờ thiếu quyền nếu có
+          if (user.stravaScopeMissing) {
+            user.stravaScopeMissing = false;
+            await saveUserAsync(user);
+          }
+
+          const activities = await res.json();
+          for (const item of activities) {
+            // Bỏ qua các bài chạy trước 00h ngày 12/10/2026
+            const actTime = new Date(item.start_date).getTime();
+            const challengeStartTime = new Date('2026-10-12T00:00:00+07:00').getTime();
+            if (actTime < challengeStartTime) {
+              continue;
+            }
+
+            const typeStr = item.type || item.sport_type;
+            let actType: ActivityType = 'Run';
+            let isTrailOrHike = false;
+
+            if (typeStr === 'TrailRun') {
+              actType = 'TrailRun';
+              isTrailOrHike = true;
+            } else if (typeStr === 'Hike') {
+              actType = 'Hike';
+              isTrailOrHike = true;
+            } else if (typeStr === 'Walk') {
+              actType = 'Walk';
+              isTrailOrHike = true;
+            }
+
+            const distanceKm = Math.round((item.distance / 1000) * 100) / 100;
+            const movingTimeSec = item.moving_time || 0;
+            const averagePaceSeconds = distanceKm > 0 ? Math.round(movingTimeSec / distanceKm) : 0;
+
+            const act: Activity = {
+              id: `strava-${item.id}`,
+              userId: user.id,
+              stravaActivityId: String(item.id),
+              title: item.name || 'Hoạt động Strava',
+              type: actType,
+              distanceKm,
+              movingTimeSec,
+              elapsedTimeSec: item.elapsed_time || movingTimeSec,
+              averagePaceSeconds,
+              elevationGain: item.total_elevation_gain || 0,
+              startDate: item.start_date || new Date().toISOString(),
+              summaryPolyline: item.map?.summary_polyline || '',
+              lagKmDeducted: 0,
+              effectiveKm: distanceKm,
+              isTrailOrHike,
+              isValid: true,
+              invalidReasons: [],
+            };
+
+            // Kiểm duyệt thể lệ giải CNHP
+            const validation = validateActivity(act);
+            act.isValid = validation.isValid;
+            act.invalidReasons = validation.invalidReasons;
+
+            await saveActivityAsync(act);
+            syncedCount++;
           }
         } catch (e) {
           console.error(`Lỗi khi sync Strava cho user ${user.name}:`, e);
@@ -129,6 +149,7 @@ export async function POST(req: NextRequest) {
         ? `Đã đồng bộ thành công ${syncedCount} bài chạy từ Strava!`
         : `Dữ liệu đã được cập nhật mới nhất! (Đã quét ${usersToSync.length} vận động viên)`,
       syncedCount,
+      warnings,
     });
   } catch (error) {
     console.error('Lỗi khi đồng bộ Strava:', error);

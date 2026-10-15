@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const state = searchParams.get('state'); // Chứa clientId hoặc 'client_1', 'client_2'
+  const scope = searchParams.get('scope');
 
   if (error) {
     let friendlyError = error;
@@ -16,6 +17,19 @@ export async function GET(req: NextRequest) {
       friendlyError = 'Bạn đã từ chối cấp quyền kết nối Strava.';
     }
     return NextResponse.redirect(new URL('/?strava_error=' + encodeURIComponent(friendlyError), req.url));
+  }
+
+  // Bắt buộc phải có quyền xem bài tập (activity:read hoặc activity:read_all)
+  if (scope && !scope.includes('activity:read')) {
+    return NextResponse.redirect(
+      new URL(
+        '/?strava_error=' +
+          encodeURIComponent(
+            '⚠️ Bạn chưa cấp quyền đọc bài chạy! Khi ủy quyền trên Strava, vui lòng bắt buộc TÍCH CHỌN ô: "Xem dữ liệu về các hoạt động của bạn" (View data about your activities) để hệ thống tự động đồng bộ kết quả.'
+          ),
+        req.url
+      )
+    );
   }
 
   const configuredClients = getStravaClients();
@@ -49,6 +63,7 @@ export async function GET(req: NextRequest) {
       user.stravaRefreshToken = refresh_token;
       user.stravaTokenExpiresAt = expires_at;
       user.stravaClientId = clientIdUsed;
+      user.stravaScopeMissing = false;
       user.name = `${athlete.firstname || ''} ${athlete.lastname || ''}`.trim() || user.name;
       user.avatar = athlete.profile || user.avatar;
     } else {
@@ -71,6 +86,7 @@ export async function GET(req: NextRequest) {
         stravaRefreshToken: refresh_token,
         stravaTokenExpiresAt: expires_at,
         stravaClientId: clientIdUsed,
+        stravaScopeMissing: false,
         teamId: assignedTeamId,
         isCaptain: false,
         isPaidFee: false,

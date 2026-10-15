@@ -30,7 +30,7 @@ export default function StravaOAuthModal({
     const scope = 'read,activity:read_all';
     window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&approval_prompt=auto&scope=${scope}&state=${clientId}`;
+    )}&approval_prompt=force&scope=${scope}&state=${clientId}`;
   };
 
   return (
@@ -68,6 +68,22 @@ export default function StravaOAuthModal({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Hướng dẫn cấp quyền quan trọng */}
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200 space-y-1.5">
+          <p className="font-bold flex items-center gap-1 text-amber-900 dark:text-amber-100">
+            ⚠️ Lưu ý bắt buộc khi cấp quyền:
+          </p>
+          <p className="leading-relaxed">
+            Tại màn hình Strava hiện ra, bạn <strong>bắt buộc phải TÍCH CHỌN</strong> vào ô:
+          </p>
+          <div className="font-semibold text-orange-700 dark:text-orange-300 bg-amber-100/70 dark:bg-amber-900/50 p-2 rounded-xl border border-amber-300 dark:border-amber-700">
+            ☑️ "Xem dữ liệu về các hoạt động của bạn" <br/><span className="text-[10px] text-slate-500 dark:text-slate-400">(View data about your activities)</span>
+          </div>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+            Nếu bỏ chọn ô này, Strava sẽ không cho phép app đọc và đồng bộ bài chạy vào giải đấu.
+          </p>
         </div>
 
         {/* Danh sách 2 Cổng Đăng Nhập */}

@@ -1436,11 +1436,16 @@ export default function AdminPanel({ teams, users, leaveRequests = [], onRefresh
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center flex-wrap gap-2">
                           <span>{user.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'}</span>
                           {user.stravaId && (
                             <span className="text-orange-600 dark:text-orange-400 font-medium">
                               Strava ID: {user.stravaId}
+                            </span>
+                          )}
+                          {user.stravaScopeMissing && (
+                            <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800 text-[10px] animate-pulse">
+                              ⚠️ Chưa cấp quyền đọc bài chạy
                             </span>
                           )}
                         </div>
