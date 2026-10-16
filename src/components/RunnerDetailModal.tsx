@@ -103,14 +103,14 @@ export default function RunnerDetailModal({
 
   const isClubOnlyMember = Boolean(team?.isClubOnly || user.teamId === 'team-4');
   const isUnpaidFee = !isClubOnlyMember && !user.isPaidFee;
-  const currentWeekPenalty = isClubOnlyMember ? 0 : (currentWeekStats?.totalPenaltyAmount || 0);
-  const totalDebt = isClubOnlyMember ? 0 : ((isUnpaidFee ? 200000 : 0) + currentWeekPenalty);
+  const currentWeekPenalty = currentWeekStats?.totalPenaltyAmount || 0;
+  const totalDebt = (isUnpaidFee ? 200000 : 0) + currentWeekPenalty;
 
   const paymentSyntax = isUnpaidFee && currentWeekPenalty > 0
     ? `CNHP ${user.name.replace(/\s+/g, ' ')} PHI VA PHAT T${selectedWeek?.weekNumber || 1}`
     : isUnpaidFee
     ? `CNHP PHI ${user.name.replace(/\s+/g, ' ')}`
-    : `CNHP ${user.name.replace(/\s+/g, ' ')} Tuan ${selectedWeek?.weekNumber || 1}`;
+    : `CNHP PHAT ${user.name.replace(/\s+/g, ' ')} T${selectedWeek?.weekNumber || 1}`;
 
   const vietQrUrl = `https://img.vietqr.io/image/970407-19030671988989-compact2.png?amount=${totalDebt > 0 ? totalDebt : 200000}&addInfo=${encodeURIComponent(paymentSyntax)}&accountName=TRINH%20LONG`;
 
@@ -179,8 +179,12 @@ Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới n
                 •
                 {isClubOnlyMember ? (
                   currentWeekStats?.isCompleted ? (
-                    <span className="text-purple-600 dark:text-purple-400 font-bold">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                       ✅ Đạt chỉ tiêu CLB (≥15km & ≥3b)
+                    </span>
+                  ) : currentWeekStats && currentWeekStats.totalPenaltyAmount > 0 ? (
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">
+                      Phạt tuần: {formatCurrency(currentWeekStats.totalPenaltyAmount)}
                     </span>
                   ) : (
                     <span className="text-purple-600 dark:text-purple-400 font-medium">
@@ -324,9 +328,9 @@ Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới n
                   </div>
 
                   <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-orange-100 dark:border-orange-900/40">
-                    <div className="text-[11px] text-slate-500">{isClubOnlyMember ? 'Áp Thể Lệ Phạt' : 'Tiền Phạt Tuần'}</div>
-                    <div className={`text-base font-black ${isClubOnlyMember ? 'text-purple-600 dark:text-purple-400' : 'text-rose-500'}`}>
-                      {isClubOnlyMember ? 'Miễn Phạt (0đ)' : formatCurrency(currentWeekStats.totalPenaltyAmount)}
+                    <div className="text-[11px] text-slate-500">Tiền Phạt Tuần</div>
+                    <div className={`text-base font-black ${currentWeekStats.totalPenaltyAmount > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {formatCurrency(currentWeekStats.totalPenaltyAmount)}
                     </div>
                   </div>
                 </div>
@@ -335,7 +339,7 @@ Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới n
                   <div className="mt-3 p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 text-xs border border-purple-200 dark:border-purple-800 flex items-center gap-2">
                     <span className="text-base">💜</span>
                     <div>
-                      <span className="font-bold">Thành viên Câu Lạc Bộ ngoài Challenge:</span> Vận động viên tham gia chạy duy trì sức khỏe (tối thiểu 15km & 3 buổi/tuần), không đóng quỹ giải 200.000đ và không áp dụng bất kỳ hình thức phạt tiền hay nợ km gối đầu nào.
+                      <span className="font-bold">Thành viên Câu Lạc Bộ ngoài Challenge:</span> Vận động viên tham gia chạy duy trì sức khỏe (tối thiểu 15.0 km & 3 buổi/tuần). Áp dụng phạt tiền nếu thiếu chỉ tiêu (20.000đ/km thiếu và 50.000đ/buổi thiếu như Challenge). Không nợ km gối đầu và không đóng quỹ giải 200.000đ.
                     </div>
                   </div>
                 )}

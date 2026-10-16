@@ -294,11 +294,7 @@ export default function IndividualLeaderboard({
                   </div>
 
                   <div className="text-right">
-                    {isClubOnlyMember ? (
-                      <span className="text-purple-600 dark:text-purple-400 font-bold text-xs">
-                        CLB (Miễn phạt)
-                      </span>
-                    ) : isOverall ? (
+                    {isOverall ? (
                       totalReward > 0 ? (
                         <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
                           +{formatCurrency(totalReward)}
@@ -480,11 +476,7 @@ export default function IndividualLeaderboard({
 
                     {/* Thưởng / Phạt */}
                     <td className="py-3.5 px-4 text-right">
-                      {isClubOnlyMember ? (
-                        <span className="text-purple-600 dark:text-purple-400 font-bold text-xs">
-                          CLB (Miễn phạt)
-                        </span>
-                      ) : isOverall ? (
+                      {isOverall ? (
                         totalReward > 0 ? (
                           <span className="font-black text-emerald-600 dark:text-emerald-400">
                             +{formatCurrency(totalReward)}

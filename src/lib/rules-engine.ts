@@ -182,17 +182,42 @@ export function calculateUserWeeklyStat(
   }
 
   // NẾU LÀ THÀNH VIÊN CLB (NGOÀI CHALLENGE - TEAM 4):
-  // Không áp dụng thể lệ của challenge:
-  // - Chỉ theo dõi chạy đủ tối thiểu 15km và 3 buổi 1 tuần
-  // - KHÔNG phạt tiền thiếu km (phạt = 0đ)
-  // - KHÔNG phạt tiền thiếu buổi (phạt = 0đ)
-  // - KHÔNG nợ km gối đầu sang tuần sau (nợ = 0km)
-  // - KHÔNG nhận nợ từ tuần trước (mỗi tuần độc lập 15km)
+  // Thể lệ Team 4:
+  // - Chỉ có luật tối thiểu 1 tuần chạy 3 buổi và tổng 15km
+  // - VẪN PHẠT TIỀN NHƯ CHALLENGE nếu thiếu số tối thiểu này (20k/km thiếu, 50k/buổi thiếu)
+  // - KHÔNG nợ km gối đầu sang tuần sau (mỗi tuần độc lập tối thiểu 15km)
+  // - KHÔNG áp trần điểm Cap 40km (ghi nhận đúng km thực tế)
   if (isClubOnly) {
     const baseTargetKm = RULES.WEEKLY_MIN_KM; // 15km
-    const deficitKm = Math.max(0, Math.round((baseTargetKm - actualKm) * 100) / 100);
-    const missingDays = Math.max(0, RULES.WEEKLY_MIN_DAYS - totalDaysRun);
-    const isCompleted = actualKm >= baseTargetKm && totalDaysRun >= RULES.WEEKLY_MIN_DAYS;
+    let deficitKm = 0;
+    let roundedDeficitKm = 0;
+    let missingDays = 0;
+    let penaltyKmAmount = 0;
+    let penaltyDaysAmount = 0;
+    let totalPenaltyAmount = 0;
+    let isCompleted = false;
+
+    if (isEvaluated) {
+      const rawDeficit = Math.max(0, baseTargetKm - actualKm);
+      deficitKm = Math.round(rawDeficit * 100) / 100;
+
+      // 0.01 km thiếu tính là 1 km thiếu -> làm tròn lên (Math.ceil)
+      roundedDeficitKm = deficitKm > 0 ? Math.ceil(deficitKm) : 0;
+
+      // Phạt thiếu km (tuần thường 20.000đ/km, tuần cuối 40.000đ/km)
+      const kmPenaltyRate = week.isFinalWeek
+        ? RULES.PENALTY_PER_MISSING_KM_FINAL_WEEK
+        : RULES.PENALTY_PER_MISSING_KM;
+      penaltyKmAmount = roundedDeficitKm * kmPenaltyRate;
+
+      // Phạt thiếu buổi (< 3 buổi: 50.000đ/buổi)
+      missingDays = Math.max(0, RULES.WEEKLY_MIN_DAYS - totalDaysRun);
+      penaltyDaysAmount = missingDays * RULES.PENALTY_PER_MISSING_DAY;
+      totalPenaltyAmount = penaltyKmAmount + penaltyDaysAmount;
+
+      isCompleted = deficitKm <= 0 && missingDays === 0;
+    }
+
     const averagePaceSeconds = actualKm > 0 ? Math.round(totalMovingTimeSec / actualKm) : 0;
 
     return {
@@ -207,11 +232,11 @@ export function calculateUserWeeklyStat(
       previousDeficitKm: 0,
       totalTargetKm: baseTargetKm,
       deficitKm,
-      roundedDeficitKm: 0,
+      roundedDeficitKm,
       missingDays,
-      penaltyKmAmount: 0,
-      penaltyDaysAmount: 0,
-      totalPenaltyAmount: 0,
+      penaltyKmAmount,
+      penaltyDaysAmount,
+      totalPenaltyAmount,
       totalMovingTimeSec,
       averagePaceSeconds,
       isCompleted,

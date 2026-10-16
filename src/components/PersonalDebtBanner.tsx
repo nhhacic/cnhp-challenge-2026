@@ -27,9 +27,7 @@ export default function PersonalDebtBanner({
   if (isDismissed) return null;
 
   const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
-  if (isClubOnly) return null;
-
-  const isUnpaidFee = !user.isPaidFee;
+  const isUnpaidFee = !isClubOnly && !user.isPaidFee;
   const currentWeekStat = userWeeklyStats.find((s) => s.weekNumber === currentWeekNumber);
   const currentWeekPenalty = currentWeekStat?.totalPenaltyAmount || 0;
   const totalCumulativePenalty = userWeeklyStats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
@@ -51,11 +49,15 @@ export default function PersonalDebtBanner({
               <span>Chào {user.name}!</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-bold inline-flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Bạn đã hoàn tất 100% nộp quỹ tham dự & không có khoản phạt nào 🎉
+                {isClubOnly
+                  ? 'Bạn đã hoàn thành chỉ tiêu chạy tuần (≥15km & ≥3 buổi) và không có khoản phạt nào 🎉'
+                  : 'Bạn đã hoàn tất 100% nộp quỹ tham dự & không có khoản phạt nào 🎉'}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Cảm ơn bạn đã luôn nghiêm túc tuân thủ thể lệ CNHP Challenge! Chúc bạn chạy vui và đạt thành tích cao!
+              {isClubOnly
+                ? 'Tuyệt vời! Hãy tiếp tục duy trì thói quen chạy bộ đều đặn nhé!'
+                : 'Cảm ơn bạn đã luôn nghiêm túc tuân thủ thể lệ CNHP Challenge! Chúc bạn chạy vui và đạt thành tích cao!'}
             </p>
           </div>
         </div>

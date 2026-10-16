@@ -285,7 +285,8 @@ assert(statT4Success.totalPenaltyAmount === 0, 'Team 4: Tiền phạt = 0đ');
 assert(statT4Success.rolledOverToNextWeek === 0, 'Team 4: Không nợ km sang tuần sau');
 assert(statT4Success.baseTargetKm === 15.0, 'Team 4: Chỉ tiêu tuần là 15.0 km');
 
-// 5.2 Chạy thiếu km và thiếu buổi (chỉ chạy 1 buổi 5km) -> Chưa đạt chỉ tiêu NHƯNG PHẠT = 0, NỢ = 0
+// 5.2 Chạy thiếu km và thiếu buổi (chỉ chạy 1 buổi 5km -> thiếu 10km, thiếu 2 buổi)
+// Thể lệ mới: Vẫn phạt tiền như challenge nếu thiếu số tối thiểu (20k/km, 50k/buổi)
 const statT4Fail = calculateUserWeeklyStat(
   'u-club-2',
   testWeek,
@@ -298,8 +299,12 @@ const statT4Fail = calculateUserWeeklyStat(
 );
 
 assert(statT4Fail.isCompleted === false, 'Team 4: Chạy 5km/1 buổi -> Chưa đạt chỉ tiêu tuần');
-assert(statT4Fail.totalPenaltyAmount === 0, 'Team 4: Thiếu km và thiếu buổi nhưng TIỀN PHẠT = 0đ (không áp phạt)');
-assert(statT4Fail.rolledOverToNextWeek === 0, 'Team 4: KHÔNG nợ gối đầu sang tuần sau (tuần sau vẫn bắt đầu từ 15km)');
+assert(statT4Fail.missingDays === 2, 'Team 4: Thiếu 2 buổi chạy (3 - 1 = 2)');
+assert(statT4Fail.penaltyDaysAmount === 100000, 'Team 4: Phạt thiếu 2 buổi = 100.000đ (2 * 50k)');
+assert(statT4Fail.deficitKm === 10.0, 'Team 4: Thiếu 10km (15 - 5 = 10)');
+assert(statT4Fail.penaltyKmAmount === 200000, 'Team 4: Phạt thiếu 10km = 200.000đ (10 * 20k)');
+assert(statT4Fail.totalPenaltyAmount === 300000, 'Team 4: Tổng tiền phạt tuần = 300.000đ (200k km + 100k buổi)');
+assert(statT4Fail.rolledOverToNextWeek === 0, 'Team 4: KHÔNG nợ gối đầu sang tuần sau (tuần sau vẫn bắt đầu độc lập từ 15km)');
 
 // 5.3 Chạy vượt 40km (ví dụ 48km) -> Không áp trần Cap 40km
 const actT4_Long1: Activity = { ...baseActivity, id: 't4-l1', startDate: '2026-10-12T06:00:00Z', distanceKm: 24.0 };

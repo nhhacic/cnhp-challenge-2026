@@ -607,6 +607,7 @@ export default function TeamLeaderboard({
           let paceSec = 0;
           let isExcused = false;
           let isCompleted = false;
+          let penaltyAmount = 0;
 
           if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
             const stats = userWeeklyStatsMap[member.id] || [];
@@ -617,11 +618,13 @@ export default function TeamLeaderboard({
               paceSec = stat.averagePaceSeconds;
               isExcused = Boolean(stat.isExcused);
               isCompleted = Boolean(stat.isCompleted);
+              penaltyAmount = stat.totalPenaltyAmount || 0;
             }
           } else if (userWeeklyStatsMap) {
             const stats = userWeeklyStatsMap[member.id] || [];
             actualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
             daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
+            penaltyAmount = stats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
             const totalMovingTime = stats.reduce((sum, s) => sum + s.totalMovingTimeSec, 0);
             paceSec = actualKm > 0 ? totalMovingTime / actualKm : 0;
             isCompleted = actualKm >= 15 * (stats.length || 1);
@@ -644,6 +647,7 @@ export default function TeamLeaderboard({
             missingKm,
             missingDays,
             progressKmPercent,
+            penaltyAmount,
           };
         });
 
@@ -651,6 +655,7 @@ export default function TeamLeaderboard({
         memberStatsList.sort((a, b) => b.actualKm - a.actualKm);
 
         const totalClubActualKm = memberStatsList.reduce((sum, m) => sum + m.actualKm, 0);
+        const totalClubPenalties = memberStatsList.reduce((sum, m) => sum + m.penaltyAmount, 0);
         const completedMembersCount = memberStatsList.filter((m) => m.isTargetMet).length;
         const completionRate = teamMembers.length > 0 ? Math.round((completedMembersCount / teamMembers.length) * 100) : 0;
 
@@ -678,7 +683,7 @@ export default function TeamLeaderboard({
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
-                  Đội dành riêng cho các thành viên Câu Lạc Bộ chạy bộ duy trì thói quen sức khỏe: <strong className="text-purple-700 dark:text-purple-300">Tối thiểu 15.0 km & 3 buổi / tuần</strong>. Hoàn toàn không áp dụng thể lệ phạt tiền, không quỹ tham gia giải 200.000đ, không nợ gối đầu và không giới hạn trần 40km.
+                  Đội dành riêng cho các thành viên Câu Lạc Bộ chạy bộ duy trì thói quen sức khỏe: <strong className="text-purple-700 dark:text-purple-300">Tối thiểu 15.0 km & 3 buổi / tuần</strong>. Áp dụng thể lệ phạt tiền nếu thiếu số tối thiểu này (20.000đ/km thiếu và 50.000đ/buổi thiếu như Challenge). Không nợ gối đầu, không thu quỹ tham gia giải 200.000đ và không giới hạn trần 40km.
                 </p>
               </div>
 
@@ -762,7 +767,7 @@ export default function TeamLeaderboard({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {memberStatsList.map(({ member, actualKm, daysRun, paceSec, isExcused, isTargetMet, missingKm, missingDays, progressKmPercent }) => {
+                  {memberStatsList.map(({ member, actualKm, daysRun, paceSec, isExcused, isTargetMet, missingKm, missingDays, progressKmPercent, penaltyAmount }) => {
                     return (
                       <div
                         key={member.id}
@@ -772,6 +777,8 @@ export default function TeamLeaderboard({
                         } ${
                           isTargetMet
                             ? 'border-emerald-300 dark:border-emerald-800/80 shadow-sm'
+                            : penaltyAmount > 0
+                            ? 'border-rose-300 dark:border-rose-900/50'
                             : 'border-purple-200/70 dark:border-purple-900/40'
                         }`}
                       >
@@ -802,6 +809,10 @@ export default function TeamLeaderboard({
                             {isTargetMet ? (
                               <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
                                 ✓ Đạt chỉ tiêu
+                              </span>
+                            ) : penaltyAmount > 0 ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
+                                Phạt: {formatCurrency(penaltyAmount)}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
@@ -856,7 +867,7 @@ export default function TeamLeaderboard({
                           <div className="text-right">
                             {isTargetMet ? (
                               <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                Xuất sắc 🎉
+                                Xuất sắc 🎉 (0đ phạt)
                               </span>
                             ) : (
                               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
