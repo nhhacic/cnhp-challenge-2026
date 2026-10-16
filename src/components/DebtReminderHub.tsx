@@ -83,18 +83,19 @@ export default function DebtReminderHub({
   const allDebts: UserDebtItem[] = useMemo(() => {
     return users.map((user) => {
       const team = teamMap.get(user.teamId);
-      const isUnpaidFee = !user.isPaidFee;
+      const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
+      const isUnpaidFee = !isClubOnly && !user.isPaidFee;
       const feeAmount = isUnpaidFee ? 200000 : 0;
 
       const stats = userWeeklyStatsMap[user.id] || [];
       const currentStat = stats.find((s) => s.weekNumber === currentWeekNumber);
 
-      const currentWeekPenalty = currentStat?.totalPenaltyAmount || 0;
+      const currentWeekPenalty = isClubOnly ? 0 : (currentStat?.totalPenaltyAmount || 0);
       const missingDays = currentStat?.missingDays || 0;
-      const penaltyDaysAmount = currentStat?.penaltyDaysAmount || 0;
+      const penaltyDaysAmount = isClubOnly ? 0 : (currentStat?.penaltyDaysAmount || 0);
       const deficitKm = currentStat?.deficitKm || 0;
-      const penaltyKmAmount = currentStat?.penaltyKmAmount || 0;
-      const cumulativePenalty = stats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
+      const penaltyKmAmount = isClubOnly ? 0 : (currentStat?.penaltyKmAmount || 0);
+      const cumulativePenalty = isClubOnly ? 0 : stats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
 
       const totalDebtThisWeek = feeAmount + currentWeekPenalty;
 

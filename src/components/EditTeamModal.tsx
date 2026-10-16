@@ -42,10 +42,12 @@ export default function EditTeamModal({
   const [teamName, setTeamName] = useState('');
   const [teamColor, setTeamColor] = useState('#ff5722');
   const [captainId, setCaptainId] = useState<string>('');
+  const [isClubOnly, setIsClubOnly] = useState(false);
 
   // Form tạo team mới
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#ff5722');
+  const [newIsClubOnly, setNewIsClubOnly] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,12 +70,14 @@ export default function EditTeamModal({
     if (activeTab === 'CREATE_NEW') {
       setNewTeamName('');
       setNewTeamColor('#ff5722');
+      setNewIsClubOnly(false);
     } else {
       const currentTeam = teams.find((t) => t.id === activeTab);
       if (currentTeam) {
         setTeamName(currentTeam.name);
         setTeamColor(currentTeam.color || '#ff5722');
         setCaptainId(currentTeam.captainId || '');
+        setIsClubOnly(Boolean(currentTeam.isClubOnly || currentTeam.id === 'team-4'));
       }
     }
   }, [activeTab, teams]);
@@ -105,6 +109,7 @@ export default function EditTeamModal({
         name: teamName.trim(),
         color: teamColor,
         captainId: captainId || undefined,
+        isClubOnly: Boolean(isClubOnly || currentTeam.id === 'team-4'),
       };
 
       const res = await fetch('/api/admin', {
@@ -168,6 +173,7 @@ export default function EditTeamModal({
           action: 'create_team',
           name: newTeamName.trim(),
           color: newTeamColor,
+          isClubOnly: newIsClubOnly,
           isAdmin,
         }),
       });
@@ -286,6 +292,11 @@ export default function EditTeamModal({
                   style={{ backgroundColor: t.color || '#ff5722' }}
                 />
                 <span className="whitespace-nowrap">{t.name}</span>
+                {(t.isClubOnly || t.id === 'team-4') && (
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    CLB
+                  </span>
+                )}
               </button>
             );
           })}
@@ -384,6 +395,26 @@ export default function EditTeamModal({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60">
+                <label className="flex items-start space-x-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newIsClubOnly}
+                    disabled={!isAdmin || isSaving}
+                    onChange={(e) => setNewIsClubOnly(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 dark:border-slate-600 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Đội Phong Trào CLB (Ngoài Challenge Thu Đông)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                      Chỉ theo dõi chạy đủ tối thiểu 15km và 3 buổi 1 tuần. Không áp thể lệ phạt thiếu km/buổi, không nợ gối đầu, không thu quỹ giải.
+                    </span>
+                  </div>
+                </label>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -488,6 +519,26 @@ export default function EditTeamModal({
                 <p className="text-[11px] text-slate-400 mt-1">
                   Đội hiện có {teamMembers.length} thành viên tham gia.
                 </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60">
+                <label className="flex items-start space-x-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isClubOnly}
+                    disabled={!isAdmin || isSaving}
+                    onChange={(e) => setIsClubOnly(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 dark:border-slate-600 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Đội Phong Trào CLB (Ngoài Challenge Thu Đông)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                      Chỉ theo dõi chạy đủ tối thiểu 15km và 3 buổi 1 tuần. Không áp thể lệ phạt thiếu km/buổi, không nợ gối đầu, không thu quỹ giải.
+                    </span>
+                  </div>
+                </label>
               </div>
 
               {/* Nút hành động */}

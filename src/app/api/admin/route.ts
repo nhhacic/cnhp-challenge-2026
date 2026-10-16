@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
         id: `team-${Date.now()}`,
         name: name.trim(),
         color: color || '#f97316',
+        isClubOnly: Boolean(body.isClubOnly),
       };
       const saved = await saveTeamAsync(newTeam);
       return NextResponse.json({ success: true, team: saved });

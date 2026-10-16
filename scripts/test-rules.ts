@@ -252,6 +252,82 @@ const excusedRunner: UserWeeklyStat = {
 const teamWithExcused = calculateTeamWeeklyStats(teamA, testWeek, [activeRunner, excusedRunner]);
 assert(teamWithExcused.averageCappedKmPerMember === 30, 'Điểm bình quân Team tính trên quân số thực tế (30km, không tụt xuống 15km)');
 
+// ----------------------------------------------------
+// TEST NHÓM 5: THÀNH VIÊN CLB PHONG TRÀO (TEAM 4 - NGOÀI CHALLENGE)
+// ----------------------------------------------------
+console.log('\n--- NHÓM 5: Đội phong trào CLB (Team 4 - Ngoài Challenge) ---');
+
+const team4: Team = {
+  id: 'team-4',
+  name: 'Team 4 - Thành Viên CLB (Ngoài Challenge)',
+  color: '#8b5cf6',
+  isClubOnly: true,
+};
+
+// 5.1 Chạy đủ 15km và 3 buổi -> Hoàn thành tuần, không phạt
+const actT4_1: Activity = { ...baseActivity, id: 't4-1', startDate: '2026-10-12T06:00:00Z', distanceKm: 5.0 };
+const actT4_2: Activity = { ...baseActivity, id: 't4-2', startDate: '2026-10-14T06:00:00Z', distanceKm: 5.0 };
+const actT4_3: Activity = { ...baseActivity, id: 't4-3', startDate: '2026-10-16T06:00:00Z', distanceKm: 6.0 };
+
+const statT4Success = calculateUserWeeklyStat(
+  'u-club-1',
+  testWeek,
+  [actT4_1, actT4_2, actT4_3],
+  0,
+  true,
+  false,
+  undefined,
+  true // isClubOnly
+);
+
+assert(statT4Success.isCompleted === true, 'Team 4: Chạy 16km và 3 buổi -> Đạt chỉ tiêu tuần');
+assert(statT4Success.totalPenaltyAmount === 0, 'Team 4: Tiền phạt = 0đ');
+assert(statT4Success.rolledOverToNextWeek === 0, 'Team 4: Không nợ km sang tuần sau');
+assert(statT4Success.baseTargetKm === 15.0, 'Team 4: Chỉ tiêu tuần là 15.0 km');
+
+// 5.2 Chạy thiếu km và thiếu buổi (chỉ chạy 1 buổi 5km) -> Chưa đạt chỉ tiêu NHƯNG PHẠT = 0, NỢ = 0
+const statT4Fail = calculateUserWeeklyStat(
+  'u-club-2',
+  testWeek,
+  [actT4_1],
+  0,
+  true,
+  false,
+  undefined,
+  true // isClubOnly
+);
+
+assert(statT4Fail.isCompleted === false, 'Team 4: Chạy 5km/1 buổi -> Chưa đạt chỉ tiêu tuần');
+assert(statT4Fail.totalPenaltyAmount === 0, 'Team 4: Thiếu km và thiếu buổi nhưng TIỀN PHẠT = 0đ (không áp phạt)');
+assert(statT4Fail.rolledOverToNextWeek === 0, 'Team 4: KHÔNG nợ gối đầu sang tuần sau (tuần sau vẫn bắt đầu từ 15km)');
+
+// 5.3 Chạy vượt 40km (ví dụ 48km) -> Không áp trần Cap 40km
+const actT4_Long1: Activity = { ...baseActivity, id: 't4-l1', startDate: '2026-10-12T06:00:00Z', distanceKm: 24.0 };
+const actT4_Long2: Activity = { ...baseActivity, id: 't4-l2', startDate: '2026-10-14T06:00:00Z', distanceKm: 24.0 };
+const statT4Long = calculateUserWeeklyStat(
+  'u-club-ultra',
+  testWeek,
+  [actT4_Long1, actT4_Long2],
+  0,
+  true,
+  false,
+  undefined,
+  true // isClubOnly
+);
+assert(statT4Long.actualKm === 48.0, 'Team 4: Ghi nhận đúng 48.0 km thực tế');
+assert(statT4Long.cappedKm === 48.0, 'Team 4: cappedKm ghi nhận đúng 48.0km (không bị giới hạn trần 40km)');
+
+// 5.4 Đội phong trào CLB xếp hạng độc lập (rank 0, thưởng 0đ, không làm xáo trộn thưởng Team 1, 2, 3)
+const teamStat4 = calculateTeamWeeklyStats(team4, testWeek, [statT4Success]);
+const rankedWithClub = rankTeamsForWeek([teamStatA, teamStatB, teamStat4]);
+
+assert(rankedWithClub.length === 3, 'Bảng xếp hạng tuần có 3 đội');
+assert(rankedWithClub[0].teamId === 'team-b' && rankedWithClub[0].rank === 1, 'Team B vẫn xếp Hạng 1 Challenge');
+assert(rankedWithClub[1].teamId === 'team-a' && rankedWithClub[1].rank === 2, 'Team A vẫn xếp Hạng 2 Challenge');
+const clubInRanked = rankedWithClub.find((t) => t.teamId === 'team-4');
+assert(clubInRanked?.rank === 0, 'Team 4 CLB ngoài Challenge không tính hạng đua (rank = 0)');
+assert(clubInRanked?.rewardAmount === 0, 'Team 4 CLB không nhận tiền thưởng giải Challenge (thưởng = 0đ)');
+
 console.log('\n========================================================');
 console.log(`📊 TỔNG KẾT: ${passCount} PASSED, ${failCount} FAILED`);
 console.log('========================================================\n');

@@ -25,6 +25,7 @@ export interface Team {
   name: string;
   color: string;
   captainId?: string;
+  isClubOnly?: boolean; // Nếu true: Đội phong trào CLB (ngoài Challenge Thu Đông, không áp thể lệ phạt/thưởng/nợ)
 }
 
 export interface Activity {
@@ -81,6 +82,7 @@ export interface UserWeeklyStat {
   rolledOverToNextWeek: number; // Km nợ chuyển sang tuần tiếp theo
   isExcused?: boolean; // Được duyệt tạm nghỉ tuần này vì lý do bất khả kháng
   leaveReason?: string;
+  isClubOnly?: boolean; // Thành viên thuộc đội phong trào CLB (ngoài Challenge)
 }
 
 export interface LeaveRequest {
@@ -111,6 +113,7 @@ export interface TeamWeeklyStat {
   rank: number;
   rewardAmount: number; // 150k, 100k, 50k
   members: UserWeeklyStat[];
+  isClubOnly?: boolean;
 }
 
 export interface OverallUserStat {
@@ -130,6 +133,7 @@ export interface OverallUserStat {
   weeksCompleted: number;
   maleRank?: number;
   femaleRank?: number;
+  isClubOnly?: boolean;
 }
 
 export interface OverallTeamStat {
@@ -145,6 +149,7 @@ export interface OverallTeamStat {
   finalRewardAmount: number; // 300k, 200k, 100k
   weeklyRewardAmount: number;
   totalRewardAmount: number;
+  isClubOnly?: boolean;
 }
 
 export interface FinancialOverview {

@@ -20,6 +20,20 @@ export async function GET() {
     const { weeks, teams, users, activities } = data;
     const leaveRequests = data.leaveRequests || [];
 
+    // Tự động đảm bảo Team 4 (Thành viên CLB ngoài Challenge) luôn tồn tại trong danh sách Đội
+    let team4 = teams.find((t) => t.id === 'team-4');
+    if (!team4) {
+      team4 = {
+        id: 'team-4',
+        name: 'Team 4 - Thành Viên CLB (Ngoài Challenge)',
+        color: '#8b5cf6',
+        isClubOnly: true,
+      };
+      teams.push(team4);
+    } else {
+      team4.isClubOnly = true;
+    }
+
     // Danh sách các đơn xin nghỉ đã được Admin duyệt
     const approvedLeavesMap = new Map<string, any>();
     for (const req of leaveRequests) {
@@ -45,13 +59,24 @@ export async function GET() {
       const userStats: UserWeeklyStat[] = [];
       const userActs = activities.filter((a) => a.userId === user.id);
       let previousDeficit = 0;
+      const userTeam = teams.find((t) => t.id === user.teamId);
+      const isClubOnly = Boolean(userTeam?.isClubOnly || user.teamId === 'team-4');
 
       for (const week of weeks) {
         const isEvaluated = evaluatedWeeksSet.has(week.weekNumber);
         const leave = approvedLeavesMap.get(`${user.id}_${week.weekNumber}`);
         const isExcused = Boolean(leave);
         const leaveReason = leave?.reason;
-        const stat = calculateUserWeeklyStat(user.id, week, userActs, previousDeficit, isEvaluated, isExcused, leaveReason);
+        const stat = calculateUserWeeklyStat(
+          user.id,
+          week,
+          userActs,
+          previousDeficit,
+          isEvaluated,
+          isExcused,
+          leaveReason,
+          isClubOnly
+        );
         userStats.push(stat);
         if (isEvaluated) {
           allUserWeeklyStats.push(stat);
@@ -93,9 +118,14 @@ export async function GET() {
     // 4. Tính Xếp hạng Đội chung cuộc
     const overallTeams = rankOverallTeams(teams, allTeamWeeklyStats);
 
-    // 5. Báo cáo Tài chính & Quỹ Giải theo đúng thể lệ (Phí tham dự 200.000đ/người + Quỹ phạt)
+    // 5. Báo cáo Tài chính & Quỹ Giải theo đúng thể lệ (Phí tham dự 200.000đ/người Challenge + Quỹ phạt)
     const entryFeePerPerson = data.challenge?.entryFee ?? RULES.ENTRY_FEE;
-    const totalFeeCollected = users.filter((u) => u.isPaidFee).length * entryFeePerPerson;
+    // Chỉ thu quỹ tham dự đối với thành viên tham gia Challenge Thu Đông (Team 1, 2, 3), miễn phí với Team 4 CLB
+    const challengeUsers = users.filter((u) => {
+      const t = teams.find((tm) => tm.id === u.teamId);
+      return !t?.isClubOnly && u.teamId !== 'team-4';
+    });
+    const totalFeeCollected = challengeUsers.filter((u) => u.isPaidFee).length * entryFeePerPerson;
     const totalPenalties = allUserWeeklyStats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
     const totalWeeklyRewards = allTeamWeeklyStats.reduce((sum, s) => sum + s.rewardAmount, 0);
     const totalFinalRewards =

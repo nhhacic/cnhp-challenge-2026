@@ -141,6 +141,8 @@ export default function IndividualLeaderboard({
             const rank = idx + 1;
             const { user, team, totalKm, averagePaceSeconds, daysRun, totalPenalty, totalReward, weeklyStat } = row;
 
+            const isClubOnlyMember = Boolean(team?.isClubOnly || user.teamId === 'team-4');
+
             return (
               <div
                 key={user.id}
@@ -281,7 +283,7 @@ export default function IndividualLeaderboard({
                           )}
                           {weeklyStat && weeklyStat.deficitKm > 0 && (
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400">
-                              Thiếu {weeklyStat.deficitKm}km (nợ)
+                              Thiếu {weeklyStat.deficitKm}km{isClubOnlyMember ? '' : ' (nợ)'}
                             </span>
                           )}
                         </div>
@@ -292,7 +294,11 @@ export default function IndividualLeaderboard({
                   </div>
 
                   <div className="text-right">
-                    {isOverall ? (
+                    {isClubOnlyMember ? (
+                      <span className="text-purple-600 dark:text-purple-400 font-bold text-xs">
+                        CLB (Miễn phạt)
+                      </span>
+                    ) : isOverall ? (
                       totalReward > 0 ? (
                         <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
                           +{formatCurrency(totalReward)}
@@ -340,6 +346,8 @@ export default function IndividualLeaderboard({
               {filteredRows.map((row, idx) => {
                 const rank = idx + 1;
                 const { user, team, totalKm, averagePaceSeconds, daysRun, totalPenalty, totalReward, weeklyStat } = row;
+
+                const isClubOnlyMember = Boolean(team?.isClubOnly || user.teamId === 'team-4');
 
                 return (
                   <tr
@@ -462,7 +470,7 @@ export default function IndividualLeaderboard({
                             )}
                             {weeklyStat && weeklyStat.deficitKm > 0 && (
                               <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                                Thiếu {weeklyStat.deficitKm}km (nợ)
+                                Thiếu {weeklyStat.deficitKm}km{isClubOnlyMember ? '' : ' (nợ)'}
                               </span>
                             )}
                           </div>
@@ -472,7 +480,11 @@ export default function IndividualLeaderboard({
 
                     {/* Thưởng / Phạt */}
                     <td className="py-3.5 px-4 text-right">
-                      {isOverall ? (
+                      {isClubOnlyMember ? (
+                        <span className="text-purple-600 dark:text-purple-400 font-bold text-xs">
+                          CLB (Miễn phạt)
+                        </span>
+                      ) : isOverall ? (
                         totalReward > 0 ? (
                           <span className="font-black text-emerald-600 dark:text-emerald-400">
                             +{formatCurrency(totalReward)}

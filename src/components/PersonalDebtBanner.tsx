@@ -26,6 +26,9 @@ export default function PersonalDebtBanner({
 
   if (isDismissed) return null;
 
+  const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
+  if (isClubOnly) return null;
+
   const isUnpaidFee = !user.isPaidFee;
   const currentWeekStat = userWeeklyStats.find((s) => s.weekNumber === currentWeekNumber);
   const currentWeekPenalty = currentWeekStat?.totalPenaltyAmount || 0;

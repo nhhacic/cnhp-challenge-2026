@@ -444,6 +444,7 @@ export default function HomePage() {
             currentWeekNumber={selectedWeekNumber || 1}
             onRefreshData={() => fetchData(true)}
             isAdmin={isAdmin}
+            onSelectUser={(user) => setSelectedUserForModal(user)}
           />
         )}
 

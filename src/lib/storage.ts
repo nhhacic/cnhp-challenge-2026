@@ -44,6 +44,7 @@ export function getInitialDefaultData(): ChallengeData {
     { id: 'team-1', name: 'Team 1 - Chiến Binh Rực Lửa', color: '#ff5722', captainId: 'user-1' },
     { id: 'team-2', name: 'Team 2 - Rùa Vàng Bền Bỉ', color: '#10b981', captainId: 'user-6' },
     { id: 'team-3', name: 'Team 3 - Thần Tốc Bắc Hà', color: '#3b82f6', captainId: 'user-11' },
+    { id: 'team-4', name: 'Team 4 - Thành Viên CLB (Ngoài Challenge)', color: '#8b5cf6', isClubOnly: true },
   ];
 
   const users: User[] = [
@@ -141,6 +142,15 @@ export async function loadDataAsync(): Promise<ChallengeData> {
         const cloudData = await redis.get<ChallengeData>(REDIS_KEY);
         if (cloudData && cloudData.teams && cloudData.users) {
           if (!cloudData.leaveRequests) cloudData.leaveRequests = [];
+          if (!cloudData.teams.some((t) => t.id === 'team-4')) {
+            cloudData.teams.push({
+              id: 'team-4',
+              name: 'Team 4 - Thành Viên CLB (Ngoài Challenge)',
+              color: '#8b5cf6',
+              isClubOnly: true,
+            });
+            await redis.set(REDIS_KEY, cloudData);
+          }
           globalThis.__challengeData = cloudData;
           saveData(cloudData); // đồng bộ vào cache local file/tmp
           return cloudData;

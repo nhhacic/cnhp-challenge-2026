@@ -119,7 +119,8 @@ export function calculateUserWeeklyStat(
   previousDeficitKm: number = 0,
   isEvaluated: boolean = true,
   isExcused: boolean = false,
-  leaveReason?: string
+  leaveReason?: string,
+  isClubOnly: boolean = false
 ): UserWeeklyStat {
   // Lọc các bài chạy hợp lệ và diễn ra trong tuần
   const weekStart = week.startDate; // YYYY-MM-DD
@@ -176,10 +177,51 @@ export function calculateUserWeeklyStat(
       rolledOverToNextWeek: 0,
       isExcused: true,
       leaveReason,
+      isClubOnly,
     };
   }
 
-  // Chỉ tiêu tuần
+  // NẾU LÀ THÀNH VIÊN CLB (NGOÀI CHALLENGE - TEAM 4):
+  // Không áp dụng thể lệ của challenge:
+  // - Chỉ theo dõi chạy đủ tối thiểu 15km và 3 buổi 1 tuần
+  // - KHÔNG phạt tiền thiếu km (phạt = 0đ)
+  // - KHÔNG phạt tiền thiếu buổi (phạt = 0đ)
+  // - KHÔNG nợ km gối đầu sang tuần sau (nợ = 0km)
+  // - KHÔNG nhận nợ từ tuần trước (mỗi tuần độc lập 15km)
+  if (isClubOnly) {
+    const baseTargetKm = RULES.WEEKLY_MIN_KM; // 15km
+    const deficitKm = Math.max(0, Math.round((baseTargetKm - actualKm) * 100) / 100);
+    const missingDays = Math.max(0, RULES.WEEKLY_MIN_DAYS - totalDaysRun);
+    const isCompleted = actualKm >= baseTargetKm && totalDaysRun >= RULES.WEEKLY_MIN_DAYS;
+    const averagePaceSeconds = actualKm > 0 ? Math.round(totalMovingTimeSec / actualKm) : 0;
+
+    return {
+      userId,
+      weekNumber: week.weekNumber,
+      validActivitiesCount: validActivitiesInWeek.length,
+      uniqueRunDays,
+      totalDaysRun,
+      actualKm,
+      cappedKm: actualKm, // Không áp trần điểm vì không đua giải
+      baseTargetKm,
+      previousDeficitKm: 0,
+      totalTargetKm: baseTargetKm,
+      deficitKm,
+      roundedDeficitKm: 0,
+      missingDays,
+      penaltyKmAmount: 0,
+      penaltyDaysAmount: 0,
+      totalPenaltyAmount: 0,
+      totalMovingTimeSec,
+      averagePaceSeconds,
+      isCompleted,
+      rolledOverToNextWeek: 0,
+      isExcused: false,
+      isClubOnly: true,
+    };
+  }
+
+  // Chỉ tiêu tuần đối với VĐV tham gia Challenge Thu Đông
   const baseTargetKm = RULES.WEEKLY_MIN_KM;
   const totalTargetKm = Math.round((baseTargetKm + previousDeficitKm) * 100) / 100;
 
@@ -242,6 +284,7 @@ export function calculateUserWeeklyStat(
     isCompleted,
     rolledOverToNextWeek,
     isExcused: false,
+    isClubOnly: false,
   };
 }
 
@@ -280,6 +323,8 @@ export function calculateTeamWeeklyStats(
   const averagePaceSeconds =
     totalActualKm > 0 ? totalMovingTimeSec / totalActualKm : 0;
 
+  const isClubOnly = Boolean(team.isClubOnly || team.id === 'team-4');
+
   return {
     teamId: team.id,
     teamName: team.name,
@@ -294,14 +339,20 @@ export function calculateTeamWeeklyStats(
     rank: 0,
     rewardAmount: 0,
     members: membersWeeklyStats,
+    isClubOnly,
   };
 }
 
 /**
  * Xếp hạng và phân giải các Đội trong tuần
+ * Chỉ xếp hạng và trao thưởng cho các đội Challenge Thu Đông.
+ * Đội phong trào CLB (Team 4) chỉ theo dõi độc lập, không tham gia tranh giải.
  */
 export function rankTeamsForWeek(teamsStats: TeamWeeklyStat[]): TeamWeeklyStat[] {
-  const sorted = [...teamsStats].sort((a, b) => {
+  const challengeTeams = teamsStats.filter((t) => !t.isClubOnly && t.teamId !== 'team-4');
+  const clubOnlyTeams = teamsStats.filter((t) => Boolean(t.isClubOnly || t.teamId === 'team-4'));
+
+  const sortedChallenge = [...challengeTeams].sort((a, b) => {
     // 1. Bình quân km cao hơn xếp trên
     if (b.averageCappedKmPerMember !== a.averageCappedKmPerMember) {
       return b.averageCappedKmPerMember - a.averageCappedKmPerMember;
@@ -310,7 +361,7 @@ export function rankTeamsForWeek(teamsStats: TeamWeeklyStat[]): TeamWeeklyStat[]
     return b.averagePaceSeconds - a.averagePaceSeconds;
   });
 
-  return sorted.map((stat, index) => {
+  const rankedChallenge = sortedChallenge.map((stat, index) => {
     const rank = index + 1;
     let rewardAmount = 0;
     if (rank <= RULES.WEEKLY_TEAM_REWARDS.length) {
@@ -320,8 +371,18 @@ export function rankTeamsForWeek(teamsStats: TeamWeeklyStat[]): TeamWeeklyStat[]
       ...stat,
       rank,
       rewardAmount,
+      isClubOnly: false,
     };
   });
+
+  const unrankedClub = clubOnlyTeams.map((stat) => ({
+    ...stat,
+    rank: 0,
+    rewardAmount: 0,
+    isClubOnly: true,
+  }));
+
+  return [...rankedChallenge, ...unrankedClub];
 }
 
 /**
@@ -356,6 +417,7 @@ export function rankOverallUsers(
     totalActualKm = Math.round(totalActualKm * 100) / 100;
     const averagePaceSeconds = totalActualKm > 0 ? totalMovingTimeSec / totalActualKm : 0;
     const team = teamMap.get(user.teamId);
+    const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
 
     return {
       userId: user.id,
@@ -372,6 +434,7 @@ export function rankOverallUsers(
       totalPenaltyOwed,
       totalRewardEarned: 0,
       weeksCompleted,
+      isClubOnly,
     };
   });
 
@@ -389,7 +452,8 @@ export function rankOverallUsers(
     .map((u, index) => {
       const rank = index + 1;
       let reward = 0;
-      if (rank <= RULES.FINAL_INDIVIDUAL_REWARDS.length) {
+      // Chỉ thành viên Challenge mới nhận giải thưởng cá nhân chung cuộc
+      if (!u.isClubOnly && rank <= RULES.FINAL_INDIVIDUAL_REWARDS.length) {
         reward = RULES.FINAL_INDIVIDUAL_REWARDS[rank - 1];
       }
       return {
@@ -405,7 +469,8 @@ export function rankOverallUsers(
     .map((u, index) => {
       const rank = index + 1;
       let reward = 0;
-      if (rank <= RULES.FINAL_INDIVIDUAL_REWARDS.length) {
+      // Chỉ thành viên Challenge mới nhận giải thưởng cá nhân chung cuộc
+      if (!u.isClubOnly && rank <= RULES.FINAL_INDIVIDUAL_REWARDS.length) {
         reward = RULES.FINAL_INDIVIDUAL_REWARDS[rank - 1];
       }
       return {
@@ -420,18 +485,20 @@ export function rankOverallUsers(
 
 /**
  * Xếp hạng Đội chung cuộc (Final Team Rankings)
+ * Chỉ xếp hạng và trao thưởng cho các đội Challenge Thu Đông.
  */
 export function rankOverallTeams(
   teams: Team[],
   teamWeeklyStatsList: TeamWeeklyStat[]
 ): OverallTeamStat[] {
   const result: OverallTeamStat[] = teams.map((team) => {
+    const isClub = Boolean(team.isClubOnly || team.id === 'team-4');
     const weeklyStats = teamWeeklyStatsList.filter((s) => s.teamId === team.id);
     let totalActualKm = 0;
     let totalCappedKm = 0;
     let totalMovingTimeSec = 0;
     let weeklyRewardAmount = 0;
-    const memberCount = weeklyStats[0]?.memberCount || 1;
+    const memberCount = weeklyStats[0]?.memberCount || 0;
 
     for (const ws of weeklyStats) {
       totalActualKm += ws.totalActualKm;
@@ -460,10 +527,14 @@ export function rankOverallTeams(
       finalRewardAmount: 0,
       weeklyRewardAmount,
       totalRewardAmount: 0,
+      isClubOnly: isClub,
     };
   });
 
-  result.sort((a, b) => {
+  const challengeTeams = result.filter((t) => !t.isClubOnly);
+  const clubOnlyTeams = result.filter((t) => t.isClubOnly);
+
+  challengeTeams.sort((a, b) => {
     if (b.averageCappedKmPerMember !== a.averageCappedKmPerMember) {
       return b.averageCappedKmPerMember - a.averageCappedKmPerMember;
     }
@@ -471,7 +542,7 @@ export function rankOverallTeams(
     return b.averagePaceSeconds - a.averagePaceSeconds;
   });
 
-  return result.map((stat, index) => {
+  const rankedChallenge = challengeTeams.map((stat, index) => {
     const rank = index + 1;
     let finalRewardAmount = 0;
     if (rank <= RULES.FINAL_TEAM_REWARDS.length) {
@@ -484,4 +555,14 @@ export function rankOverallTeams(
       totalRewardAmount: stat.weeklyRewardAmount + finalRewardAmount,
     };
   });
+
+  const unrankedClub = clubOnlyTeams.map((stat) => ({
+    ...stat,
+    rank: 0,
+    finalRewardAmount: 0,
+    weeklyRewardAmount: 0,
+    totalRewardAmount: 0,
+  }));
+
+  return [...rankedChallenge, ...unrankedClub];
 }

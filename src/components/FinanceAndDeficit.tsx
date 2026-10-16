@@ -129,13 +129,17 @@ export default function FinanceAndDeficit({
     };
   }).filter((item) => item.stat && item.stat.totalPenaltyAmount > 0);
 
-  // Thống kê Phí Tham Dự 200.000đ
-  const paidUsers = users.filter((u) => u.isPaidFee);
-  const unpaidUsers = users.filter((u) => !u.isPaidFee);
+  // Thống kê Phí Tham Dự 200.000đ (Chỉ áp dụng cho VĐV tham gia Challenge Thu Đông)
+  const challengeUsers = users.filter((u) => {
+    const t = teamMap.get(u.teamId);
+    return !t?.isClubOnly && u.teamId !== 'team-4';
+  });
+  const paidUsers = challengeUsers.filter((u) => u.isPaidFee);
+  const unpaidUsers = challengeUsers.filter((u) => !u.isPaidFee);
   const totalCollectedFee = paidUsers.length * 200000;
-  const paymentRatePercent = users.length > 0 ? Math.round((paidUsers.length / users.length) * 100) : 0;
+  const paymentRatePercent = challengeUsers.length > 0 ? Math.round((paidUsers.length / challengeUsers.length) * 100) : 0;
 
-  const filteredFeeUsers = users.filter((u) => {
+  const filteredFeeUsers = challengeUsers.filter((u) => {
     if (feeFilter === 'UNPAID' && u.isPaidFee) return false;
     if (feeFilter === 'PAID' && !u.isPaidFee) return false;
     if (feeSearchText.trim()) {

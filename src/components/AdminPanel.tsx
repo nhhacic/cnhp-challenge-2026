@@ -1482,18 +1482,24 @@ export default function AdminPanel({ teams, users, leaveRequests = [], onRefresh
                         <span className="hidden md:inline">{user.isCaptain ? 'Đội Trưởng' : 'Gán C'}</span>
                       </button>
 
-                      {/* Nút Phí 200k */}
-                      <button
-                        onClick={() => handleToggleFee(user)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                          user.isPaidFee
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
-                            : 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
-                        }`}
-                        title="Bấm để chuyển trạng thái nộp tiền"
-                      >
-                        {user.isPaidFee ? '✓ Đã Nộp' : 'Chưa Nộp'}
-                      </button>
+                      {/* Nút Phí 200k (Miễn với thành viên CLB ngoài challenge) */}
+                      {Boolean(userTeam?.isClubOnly || user.teamId === 'team-4') ? (
+                        <span className="px-2.5 py-1.5 rounded-xl font-bold bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[11px]" title="Thành viên CLB ngoài Challenge (Miễn đóng phí 200k)">
+                          Miễn Phí CLB
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleFee(user)}
+                          className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                            user.isPaidFee
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
+                              : 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
+                          }`}
+                          title="Bấm để chuyển trạng thái nộp tiền"
+                        >
+                          {user.isPaidFee ? '✓ Đã Nộp' : 'Chưa Nộp'}
+                        </button>
+                      )}
 
                       {/* Nút Xóa thành viên */}
                       <button
