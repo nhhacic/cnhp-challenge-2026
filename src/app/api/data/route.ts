@@ -42,11 +42,13 @@ export async function GET() {
       }
     }
 
-    // Xác định các tuần đã chốt kết quả (đã kết thúc hoặc được Admin khóa chốt)
+    // Xác định các tuần đã chốt kết quả (đã kết thúc theo thời gian GMT+7 hoặc được Admin khóa chốt)
     // Phạt nợ và tiền phạt chỉ chính thức phát sinh đối với các tuần đã kết thúc/khóa
     const evaluatedWeeksSet = new Set<number>();
+    const nowTime = Date.now();
     for (const week of weeks) {
-      if (week.isLocked) {
+      const weekEndTime = new Date(`${week.endDate}T23:59:59+07:00`).getTime();
+      if (week.isLocked || nowTime > weekEndTime) {
         evaluatedWeeksSet.add(week.weekNumber);
       }
     }

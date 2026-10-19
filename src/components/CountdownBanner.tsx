@@ -10,6 +10,7 @@ interface CountdownBannerProps {
   totalKmAll: number;
   totalUsersCount: number;
   financialOverview: FinancialOverview;
+  onViewWeeklySummary?: () => void;
   onViewRules?: () => void;
   onInstallApp?: () => void;
   onOpenLeaveModal?: () => void;
@@ -21,6 +22,7 @@ export default function CountdownBanner({
   totalKmAll,
   totalUsersCount,
   financialOverview,
+  onViewWeeklySummary,
   onViewRules,
   onInstallApp,
   onOpenLeaveModal,
@@ -92,6 +94,15 @@ export default function CountdownBanner({
               <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/10 text-amber-300 border border-white/10 flex items-center gap-1">
                 <span>🔄 Được nợ bù tuần sau</span>
               </span>
+              {onViewWeeklySummary && (
+                <button
+                  onClick={onViewWeeklySummary}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 flex items-center gap-1 transition-all active:scale-95 font-bold"
+                  title="Xem Bảng tổng hợp tuần chi tiết"
+                >
+                  📊 Bảng Tổng Hợp Tuần
+                </button>
+              )}
               {onViewRules && (
                 <button
                   onClick={onViewRules}

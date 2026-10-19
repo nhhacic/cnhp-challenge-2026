@@ -216,6 +216,15 @@ export function calculateUserWeeklyStat(
       totalPenaltyAmount = penaltyKmAmount + penaltyDaysAmount;
 
       isCompleted = deficitKm <= 0 && missingDays === 0;
+    } else {
+      const rawDeficit = Math.max(0, baseTargetKm - actualKm);
+      deficitKm = Math.round(rawDeficit * 100) / 100;
+      roundedDeficitKm = deficitKm > 0 ? Math.ceil(deficitKm) : 0;
+      missingDays = Math.max(0, RULES.WEEKLY_MIN_DAYS - totalDaysRun);
+      isCompleted = deficitKm <= 0 && missingDays === 0;
+      totalPenaltyAmount = 0;
+      penaltyKmAmount = 0;
+      penaltyDaysAmount = 0;
     }
 
     const averagePaceSeconds = actualKm > 0 ? Math.round(totalMovingTimeSec / actualKm) : 0;
@@ -282,6 +291,17 @@ export function calculateUserWeeklyStat(
 
     // Cơ chế chuyển nợ sang tuần sau: nếu không phải tuần cuối thì chuyển nợ deficitKm
     rolledOverToNextWeek = week.isFinalWeek ? 0 : deficitKm;
+  } else {
+    // Tuần đang diễn ra (chưa chốt): hiển thị tiến độ thực tế, chưa phát sinh phạt chính thức
+    const rawDeficit = Math.max(0, totalTargetKm - actualKm);
+    deficitKm = Math.round(rawDeficit * 100) / 100;
+    roundedDeficitKm = deficitKm > 0 ? Math.ceil(deficitKm) : 0;
+    missingDays = Math.max(0, RULES.WEEKLY_MIN_DAYS - totalDaysRun);
+    isCompleted = deficitKm <= 0 && missingDays === 0;
+    totalPenaltyAmount = 0;
+    penaltyKmAmount = 0;
+    penaltyDaysAmount = 0;
+    rolledOverToNextWeek = 0;
   }
 
   // Pace trung bình của người này trong tuần

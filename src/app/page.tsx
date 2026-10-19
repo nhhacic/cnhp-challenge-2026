@@ -13,6 +13,7 @@ import InstallAppModal from '@/components/InstallAppModal';
 import StravaOAuthModal from '@/components/StravaOAuthModal';
 import LeaveRequestModal from '@/components/LeaveRequestModal';
 import PersonalDebtBanner from '@/components/PersonalDebtBanner';
+import WeeklySummary from '@/components/WeeklySummary';
 import { formatCurrency } from '@/lib/rules-engine';
 import {
   Activity,
@@ -26,7 +27,7 @@ import {
   FinancialOverview,
   LeaveRequest,
 } from '@/types';
-import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon, QrCode, Copy, Check, X } from 'lucide-react';
+import { Trophy, Users, DollarSign, Shield, Flame, BookOpen, Activity as ActivityIcon, QrCode, Copy, Check, X, CalendarCheck } from 'lucide-react';
 
 export default function HomePage() {
   const [data, setData] = useState<{
@@ -44,7 +45,7 @@ export default function HomePage() {
 
   const [loading, setLoading] = useState(true);
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(1); // Mặc định Tuần 1
-  const [activeTab, setActiveTab] = useState<'TEAM' | 'INDIVIDUAL' | 'FINANCE' | 'RULES' | 'ADMIN'>('TEAM');
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'TEAM' | 'INDIVIDUAL' | 'FINANCE' | 'RULES' | 'ADMIN'>('SUMMARY');
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -336,6 +337,7 @@ export default function HomePage() {
           totalKmAll={totalKmAll}
           totalUsersCount={users.length}
           financialOverview={financialOverview}
+          onViewWeeklySummary={() => setActiveTab('SUMMARY')}
           onViewRules={() => setActiveTab('RULES')}
           onInstallApp={() => setShowInstallModal(true)}
           onOpenLeaveModal={() => handleOpenLeaveModal()}
@@ -358,6 +360,19 @@ export default function HomePage() {
 
         {/* Thanh chuyển đổi phân hệ (Main Navigation Tabs) */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-5 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('SUMMARY')}
+            className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeTab === 'SUMMARY'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <CalendarCheck className="w-4 h-4 flex-shrink-0" />
+            <span className="sm:hidden">Tổng Hợp</span>
+            <span className="hidden sm:inline">Bảng Tổng Hợp Tuần</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('TEAM')}
             className={`flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
@@ -433,6 +448,21 @@ export default function HomePage() {
         </div>
 
         {/* Nội dung Tab đang chọn */}
+        {activeTab === 'SUMMARY' && (
+          <WeeklySummary
+            weeks={weeks}
+            selectedWeekNumber={selectedWeekNumber}
+            onSelectWeek={(num) => setSelectedWeekNumber(num)}
+            teams={teams}
+            users={users}
+            userWeeklyStatsMap={userWeeklyStats}
+            rankedTeamsByWeek={rankedTeamsByWeek}
+            activities={activities}
+            onSelectUser={(user) => setSelectedUserForModal(user)}
+            isAdmin={isAdmin}
+          />
+        )}
+
         {activeTab === 'TEAM' && (
           <TeamLeaderboard
             isOverall={isOverall}
