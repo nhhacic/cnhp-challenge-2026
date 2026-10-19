@@ -1,9 +1,44 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Team, TeamWeeklyStat, OverallTeamStat, User, UserWeeklyStat } from '@/types';
-import { formatKm, formatPace, formatCurrency } from '@/lib/rules-engine';
-import { Trophy, ChevronDown, ChevronUp, Users, Zap, Edit2, Shield, AlertTriangle, Lock, CheckCircle, Sparkles, Heart } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import {
+  Team,
+  TeamWeeklyStat,
+  OverallTeamStat,
+  User,
+  UserWeeklyStat,
+  Week,
+  Activity,
+} from '@/types';
+import { formatKm, formatPace, formatCurrency, RULES } from '@/lib/rules-engine';
+import { toPng } from 'html-to-image';
+import {
+  Trophy,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Zap,
+  Edit2,
+  Shield,
+  AlertTriangle,
+  Lock,
+  CheckCircle,
+  Sparkles,
+  Heart,
+  CalendarCheck,
+  Calendar,
+  Flame,
+  Download,
+  Copy,
+  Check,
+  Search,
+  Filter,
+  Eye,
+  Clock,
+  TrendingUp,
+  Award,
+  ArrowRight,
+} from 'lucide-react';
 import EditTeamModal from '@/components/EditTeamModal';
 
 interface TeamLeaderboardProps {
@@ -17,6 +52,9 @@ interface TeamLeaderboardProps {
   onRefreshData?: () => void;
   isAdmin?: boolean;
   onSelectUser?: (user: User) => void;
+  weeks?: Week[];
+  onSelectWeek?: (weekNum: number | null) => void;
+  activities?: Activity[];
 }
 
 export default function TeamLeaderboard({
@@ -25,23 +63,159 @@ export default function TeamLeaderboard({
   overallTeams,
   users,
   teams = [],
-  userWeeklyStatsMap,
-  currentWeekNumber,
+  userWeeklyStatsMap = {},
+  currentWeekNumber = 1,
   onRefreshData,
   isAdmin = false,
   onSelectUser,
+  weeks = [],
+  onSelectWeek,
+  activities = [],
 }: TeamLeaderboardProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeamIdToEdit, setSelectedTeamIdToEdit] = useState<string | null>(null);
 
+  // Bộ lọc cho Bảng Tổng Hợp Thành Viên Tuần
+  const [teamFilter, setTeamFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'DEFICIT' | 'EXCUSED'>('ALL');
+  const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [copiedZalo, setCopiedZalo] = useState<boolean>(false);
+
+  const exportInfographicRef = useRef<HTMLDivElement>(null);
+  const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+
+  // Xác định tuần hiện tại đang xem
+  const activeWeek = weeks.find((w) => w.weekNumber === currentWeekNumber) || weeks[0] || {
+    weekNumber: currentWeekNumber,
+    name: `Tuần ${currentWeekNumber}`,
+    startDate: '2026-10-12',
+    endDate: '2026-10-18',
+    isFinalWeek: false,
+    isLocked: false,
+  };
+
+  // Trạng thái thời gian tuần
+  const now = new Date();
+  const weekStart = new Date(`${activeWeek.startDate}T00:00:00+07:00`);
+  const weekEnd = new Date(`${activeWeek.endDate}T23:59:59+07:00`);
+  const isWeekPast = now > weekEnd;
+  const isWeekCurrent = now >= weekStart && now <= weekEnd;
+
   // Phân tách các đội tham gia Challenge Thu Đông và đội phong trào CLB (Team 4)
   const challengeTeams = (isOverall ? overallTeams : weeklyRankedTeams).filter(
     (t) => !t.isClubOnly && t.teamId !== 'team-4'
   );
-
-  // Danh sách các đội phong trào CLB (ngoài Challenge)
+  const clubOnlyTeamStat = (isOverall ? overallTeams : weeklyRankedTeams).find(
+    (t) => Boolean(t.isClubOnly || t.teamId === 'team-4')
+  );
   const clubOnlyTeamsList = teams.filter((t) => Boolean(t.isClubOnly || t.id === 'team-4'));
+
+  // Số liệu chi tiết từng thành viên trong tuần
+  const memberWeeklyStats = useMemo(() => {
+    return users.map((user) => {
+      const statsList = userWeeklyStatsMap[user.id] || [];
+      const stat = statsList.find((s) => s.weekNumber === currentWeekNumber);
+      const team = teamMap.get(user.teamId);
+      const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
+
+      return {
+        user,
+        team,
+        stat: stat || {
+          userId: user.id,
+          weekNumber: currentWeekNumber,
+          validActivitiesCount: 0,
+          uniqueRunDays: [],
+          totalDaysRun: 0,
+          actualKm: 0,
+          cappedKm: 0,
+          baseTargetKm: 15.0,
+          previousDeficitKm: 0,
+          totalTargetKm: 15.0,
+          deficitKm: 15.0,
+          roundedDeficitKm: 15,
+          missingDays: 3,
+          penaltyKmAmount: 0,
+          penaltyDaysAmount: 0,
+          totalPenaltyAmount: 0,
+          totalMovingTimeSec: 0,
+          averagePaceSeconds: 0,
+          isCompleted: false,
+          rolledOverToNextWeek: 0,
+          isExcused: false,
+          isClubOnly,
+        },
+        isClubOnly,
+      };
+    });
+  }, [users, userWeeklyStatsMap, currentWeekNumber, teamMap]);
+
+  // Các chỉ số KPI tổng hợp tuần toàn CLB
+  const totalActualKmWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.actualKm, 0);
+  const totalCappedKmWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.cappedKm, 0);
+  const totalValidRunsWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.validActivitiesCount, 0);
+  const totalPenaltyAmountWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.totalPenaltyAmount, 0);
+  const completedMembersCount = memberWeeklyStats.filter((r) => r.stat.isCompleted).length;
+  const excusedMembersCount = memberWeeklyStats.filter((r) => r.stat.isExcused).length;
+  const totalRewardAmountWeek = challengeTeams.reduce((sum, t) => {
+    const rew = isOverall
+      ? (t as OverallTeamStat).finalRewardAmount || 0
+      : (t as TeamWeeklyStat).rewardAmount || 0;
+    return sum + rew;
+  }, 0);
+
+  // Danh hiệu cá nhân xuất sắc nhất tuần
+  const maleRunners = memberWeeklyStats
+    .filter((r) => r.user.gender === 'MALE' && r.stat.actualKm > 0)
+    .sort((a, b) => b.stat.actualKm - a.stat.actualKm);
+  const kingOfWeek = maleRunners[0] || null;
+
+  const femaleRunners = memberWeeklyStats
+    .filter((r) => r.user.gender === 'FEMALE' && r.stat.actualKm > 0)
+    .sort((a, b) => b.stat.actualKm - a.stat.actualKm);
+  const queenOfWeek = femaleRunners[0] || null;
+
+  const qualifiedForPace = memberWeeklyStats
+    .filter((r) => r.stat.actualKm >= 15.0 && r.stat.averagePaceSeconds > 0)
+    .sort((a, b) => a.stat.averagePaceSeconds - b.stat.averagePaceSeconds);
+  const speedMaster = qualifiedForPace[0] || null;
+
+  const activeRunners = [...memberWeeklyStats]
+    .filter((r) => r.stat.totalDaysRun > 0)
+    .sort((a, b) => {
+      if (b.stat.totalDaysRun !== a.stat.totalDaysRun) {
+        return b.stat.totalDaysRun - a.stat.totalDaysRun;
+      }
+      return b.stat.actualKm - a.stat.actualKm;
+    });
+  const ironRunner = activeRunners[0] || null;
+
+  // Lọc danh sách thành viên theo bộ lọc
+  const filteredMembers = memberWeeklyStats.filter(({ user, team, stat }) => {
+    if (teamFilter !== 'ALL' && user.teamId !== teamFilter) return false;
+    if (genderFilter !== 'ALL' && user.gender !== genderFilter) return false;
+    if (statusFilter === 'COMPLETED' && !stat.isCompleted) return false;
+    if (statusFilter === 'DEFICIT' && (stat.isCompleted || stat.isExcused)) return false;
+    if (statusFilter === 'EXCUSED' && !stat.isExcused) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = user.name.toLowerCase().includes(q);
+      const matchTeam = team?.name.toLowerCase().includes(q);
+      if (!matchName && !matchTeam) return false;
+    }
+    return true;
+  });
+
+  // Sắp xếp: Km nhiều hơn xếp trước, tie-break: pace chậm hơn
+  filteredMembers.sort((a, b) => {
+    if (b.stat.actualKm !== a.stat.actualKm) {
+      return b.stat.actualKm - a.stat.actualKm;
+    }
+    return b.stat.averagePaceSeconds - a.stat.averagePaceSeconds;
+  });
 
   const toggleExpand = (teamId: string) => {
     setExpandedTeamId(expandedTeamId === teamId ? null : teamId);
@@ -87,48 +261,233 @@ export default function TeamLeaderboard({
     );
   };
 
+  // Hàm xuất ảnh PNG Infographic
+  const handleExportInfographicPng = async () => {
+    if (!exportInfographicRef.current) return;
+    try {
+      setIsExporting(true);
+      const dataUrl = await toPng(exportInfographicRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#0f172a',
+      });
+      const link = document.createElement('a');
+      link.download = `CNHP_Infographic_Tong_Hop_${isOverall ? 'Toan_Giai' : `Tuan_${currentWeekNumber}`}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Lỗi khi xuất ảnh infographic:', err);
+      alert('Không thể xuất ảnh. Vui lòng thử lại!');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Hàm sao chép báo cáo Zalo
+  const handleCopyZaloReport = () => {
+    let text = `📢 BẢNG TỔNG HỢP KẾT QUẢ ${isOverall ? 'TOÀN GIẢI CHUNG CUỘC' : activeWeek.name.toUpperCase()} (CNHP THU ĐÔNG 2026)\n`;
+    if (!isOverall) {
+      text += `⏱️ Thời gian: ${activeWeek.startDate} đến ${activeWeek.endDate}\n`;
+    }
+    text += `🏃 Tổng quãng đường CLB: ${formatKm(totalActualKmWeek)} (${totalValidRunsWeek} bài chạy hợp lệ)\n`;
+    text += `🎯 Tỷ lệ hoàn thành: ${completedMembersCount}/${users.length} VĐV (${Math.round((completedMembersCount / (users.length || 1)) * 100)}%)\n\n`;
+
+    text += `🏆 XẾP HẠNG ĐỘI ${isOverall ? 'CHUNG CUỘC' : `TUẦN ${currentWeekNumber}`}:\n`;
+    challengeTeams.forEach((t) => {
+      const medal = t.rank === 1 ? '🥇' : t.rank === 2 ? '🥈' : '🥉';
+      const rew = isOverall ? (t as OverallTeamStat).finalRewardAmount : (t as TeamWeeklyStat).rewardAmount;
+      const rewardText = rew > 0 ? ` (+${formatCurrency(rew)})` : '';
+      text += `${medal} Hạng ${t.rank}: ${t.teamName}\n   👉 Cự ly TB: ${formatKm(t.averageCappedKmPerMember)}/VĐV | Pace TB: ${formatPace(t.averagePaceSeconds)}${rewardText}\n`;
+    });
+
+    if (clubOnlyTeamStat) {
+      text += `🌟 Đội Phong Trào CLB: ${clubOnlyTeamStat.teamName} (${formatKm(clubOnlyTeamStat.totalActualKm)})\n`;
+    }
+
+    if (!isOverall) {
+      text += `\n👑 VINH DANH CÁ NHÂN XUẤT SẮC:\n`;
+      if (kingOfWeek) {
+        text += `👑 King of Week (Nam): ${kingOfWeek.user.name} (${formatKm(kingOfWeek.stat.actualKm)} - Pace ${formatPace(kingOfWeek.stat.averagePaceSeconds)})\n`;
+      }
+      if (queenOfWeek) {
+        text += `👑 Queen of Week (Nữ): ${queenOfWeek.user.name} (${formatKm(queenOfWeek.stat.actualKm)} - Pace ${formatPace(queenOfWeek.stat.averagePaceSeconds)})\n`;
+      }
+      if (speedMaster) {
+        text += `⚡ Chân Chạy Tốc Độ: ${speedMaster.user.name} (Pace ${formatPace(speedMaster.stat.averagePaceSeconds)} - ${formatKm(speedMaster.stat.actualKm)})\n`;
+      }
+
+      const deficitMembers = memberWeeklyStats.filter((r) => !r.stat.isCompleted && !r.stat.isExcused);
+      if (deficitMembers.length > 0) {
+        text += `\n⚠️ DANH SÁCH CHƯA ĐẠT CHỈ TIÊU & PHẠT TUẦN:\n`;
+        deficitMembers.forEach((r) => {
+          const missDaysText = r.stat.missingDays > 0 ? `thiếu ${r.stat.missingDays}b` : '';
+          const missKmText = r.stat.roundedDeficitKm > 0 ? `thiếu ${r.stat.roundedDeficitKm}km` : '';
+          const missDetails = [missDaysText, missKmText].filter(Boolean).join(', ');
+          text += `• ${r.user.name} (${r.team?.name?.split('-')[0]?.trim() || ''}): Phạt ${formatCurrency(r.stat.totalPenaltyAmount)} (${missDetails})\n`;
+        });
+        text += `\n💳 Kênh nộp phạt: Thủ quỹ TRINH LONG\nTechcombank: 19030671988989 (Cú pháp: CNHP PHAT [Tên] T${currentWeekNumber})\n`;
+      } else {
+        text += `\n🎉 Chúc mừng 100% VĐV đều hoàn thành xuất sắc chỉ tiêu tuần! (0đ phạt)\n`;
+      }
+    }
+
+    navigator.clipboard.writeText(text);
+    setCopiedZalo(true);
+    setTimeout(() => setCopiedZalo(false), 2500);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Banner / Nút truy cập nhanh Đổi tên & Quản lý các Đội */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-4 sm:p-5 rounded-3xl border border-orange-200/70 dark:border-orange-900/40">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/30 flex-shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
+      {/* =========================================================================
+          1. HERO BANNER INFOGRAPHIC TỔNG HỢP TUẦN & TOOLBAR
+         ========================================================================= */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white p-5 sm:p-7 shadow-xl border border-orange-500/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Top bar: Tag, Tiêu đề Infographic & Action buttons */}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10">
           <div>
-            <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Đổi Tên & Quản Lý Các Đội Đua</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-600 dark:text-orange-400 font-bold">
-                {teams.length || (isOverall ? overallTeams.length : weeklyRankedTeams.length)} Đội
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider mb-2 border border-orange-500/30">
+              <CalendarCheck className="w-3.5 h-3.5 text-orange-400" />
+              <span>
+                {isOverall
+                  ? 'BẢNG TỔNG HỢP INFOGRAPHIC TOÀN GIẢI CHUNG CUỘC'
+                  : `INFOGRAPHIC TỔNG HỢP ${activeWeek.name.toUpperCase()} (${activeWeek.startDate} - ${activeWeek.endDate})`}
               </span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Chỉnh sửa tên các đội (Team 1, Team 2, Team 3), mã màu nhận diện hoặc chỉ định Đội trưởng
+              {!isOverall && activeWeek.isFinalWeek && (
+                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  Chung Kết
+                </span>
+              )}
+            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+              <span>{isOverall ? 'Bảng Tổng Hợp Tập Thể Toàn Giải' : `Bảng Tổng Hợp ${activeWeek.name}`}</span>
+              <span className="text-xs px-2.5 py-1 rounded-xl bg-orange-500/30 text-orange-300 font-bold border border-orange-400/30 hidden sm:inline-block">
+                Infographic
+              </span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              {isOverall
+                ? 'Tổng kết thành tích tập thể qua toàn bộ 8 tuần thi đấu • Áp trần 40km/người/tuần • Xếp theo Cự ly bình quân'
+                : 'Chỉ tiêu tuần: ≥ 15.0 km & ≥ 3 buổi chạy • Trần điểm tập thể: 40 km/người • Phạt 20k/km & 50k/buổi'}
             </p>
+          </div>
+
+          {/* Action buttons: Tải ảnh Infographic PNG, Chép Zalo, Sửa tên đội Admin */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleCopyZaloReport}
+              className="flex items-center space-x-1.5 px-3 py-2 sm:px-3.5 sm:py-2 text-xs font-bold rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition active:scale-95"
+              title="Sao chép tóm tắt định dạng chuẩn Zalo"
+            >
+              {copiedZalo ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedZalo ? 'Đã chép!' : 'Chép Zalo'}</span>
+            </button>
+
+            <button
+              onClick={handleExportInfographicPng}
+              disabled={isExporting}
+              className="flex items-center space-x-1.5 px-3 py-2 sm:px-3.5 sm:py-2 text-xs font-bold rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition active:scale-95 disabled:opacity-50"
+              title="Xuất ảnh Infographic poster tổng kết chất lượng cao để chia sẻ"
+            >
+              <Download className={`w-3.5 h-3.5 ${isExporting ? 'animate-bounce' : ''}`} />
+              <span>{isExporting ? 'Đang tạo ảnh...' : 'Tải Ảnh Infographic'}</span>
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => handleOpenEdit()}
+                className="flex items-center space-x-1.5 px-3 py-2 sm:px-3.5 sm:py-2 text-xs font-bold rounded-2xl bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition active:scale-95"
+                title="Quản trị chỉnh sửa tên và màu sắc các đội đua"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Sửa Đội</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {isAdmin ? (
-          <button
-            onClick={() => handleOpenEdit()}
-            className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-orange-500/25 transition-all whitespace-nowrap"
-          >
-            <Edit2 className="w-4 h-4" />
-            <span>✏️ Sửa Tên Các Đội Đua (Admin)</span>
-          </button>
-        ) : (
-          <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-semibold border border-slate-200 dark:border-slate-700">
-            <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Chỉ Admin mới được sửa tên đội</span>
+        {/* 6 Khối KPI Infographic Nổi Bật Toàn CLB */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-5">
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+              <span>Tổng Km CLB</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-white">{formatKm(totalActualKmWeek)}</div>
+            <div className="text-[11px] text-orange-300/80 mt-0.5">Cap: {formatKm(totalCappedKmWeek)}</div>
           </div>
-        )}
+
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span>Số Bài Chạy</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-amber-400">{totalValidRunsWeek}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Bài chạy hợp lệ</div>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Đạt Chỉ Tiêu</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-400">
+              {completedMembersCount} / {users.length}
+            </div>
+            <div className="text-[11px] text-emerald-300/80 mt-0.5">
+              {Math.round((completedMembersCount / (users.length || 1)) * 100)}% thành viên
+            </div>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+              <span>{isOverall ? 'Thưởng Chung Cuộc' : 'Thưởng Tuần'}</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-yellow-400">
+              {formatCurrency(totalRewardAmountWeek)}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {isOverall ? '300k • 200k • 100k' : '150k • 100k • 50k'}
+            </div>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span>{isOverall ? 'Tổng Phạt Giải' : 'Phạt Tuần Này'}</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-rose-400">
+              {formatCurrency(totalPenaltyAmountWeek)}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {totalPenaltyAmountWeek > 0 ? 'Phạt km & thiếu buổi' : '0đ phạt'}
+            </div>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
+              <Heart className="w-3.5 h-3.5 text-purple-400" />
+              <span>Nghỉ Phép</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-purple-300">
+              {excusedMembersCount} VĐV
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Lý do bất khả kháng</div>
+          </div>
+        </div>
       </div>
 
-      {/* Top 3 Podium Cards */}
+      {/* =========================================================================
+          2. INFOGRAPHIC BỤC VINH DANH TẬP THỂ (PODIUM TOP 1-2-3 & TEAM 4)
+         ========================================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {challengeTeams.slice(0, 3).map((team, idx) => {
           const rank = idx + 1;
           const isFirst = rank === 1;
+          const isSecond = rank === 2;
+          const isThird = rank === 3;
           const reward = isOverall
             ? (team as OverallTeamStat).finalRewardAmount
             : (team as TeamWeeklyStat).rewardAmount;
@@ -136,17 +495,17 @@ export default function TeamLeaderboard({
           return (
             <div
               key={team.teamId}
-              className={`relative rounded-3xl p-5 border transition-all ${
+              className={`relative rounded-3xl p-5 border-2 transition-all ${
                 isFirst
-                  ? 'bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent border-amber-400 dark:border-amber-500/60 shadow-lg shadow-amber-500/10'
-                  : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700'
+                  ? 'bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-transparent border-amber-400 dark:border-amber-500/70 shadow-lg shadow-amber-500/10'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
               }`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   {getRankBadge(rank)}
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {isFirst ? 'Đang Dẫn Đầu' : `Hạng ${rank}`}
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    {isFirst ? '🥇 Đội Dẫn Đầu' : isSecond ? '🥈 Hạng Nhì' : '🥉 Hạng Ba'}
                   </span>
                 </div>
                 {reward > 0 && (
@@ -158,48 +517,59 @@ export default function TeamLeaderboard({
 
               {/* Tên Đội & Nút Sửa Tên Trực Tiếp */}
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: team.teamColor }} />
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 line-clamp-1">
+                  <span
+                    className="w-3.5 h-3.5 rounded-full shadow-sm flex-shrink-0"
+                    style={{ backgroundColor: team.teamColor }}
+                  />
                   <span>{team.teamName}</span>
                 </h3>
                 {isAdmin && (
                   <button
                     onClick={() => handleOpenEdit(team.teamId)}
-                    className="px-2.5 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/80 text-xs font-bold flex items-center gap-1 transition shadow-sm active:scale-95"
+                    className="px-2 py-0.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 text-xs font-bold transition flex items-center gap-1 shrink-0"
                     title="Đổi tên hoặc màu sắc đội này"
                   >
                     <Edit2 className="w-3 h-3" />
-                    <span>Sửa tên</span>
+                    <span>Sửa</span>
                   </button>
                 )}
               </div>
 
-              <div className="space-y-2 text-xs sm:text-sm">
-                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/50">
-                  <span className="text-slate-500 dark:text-slate-400">Bình quân km/người:</span>
-                  <span className="font-extrabold text-orange-600 dark:text-orange-400 text-base">
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                    Km TB / VĐV
+                  </span>
+                  <span className="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400 block mt-0.5">
                     {team.averageCappedKmPerMember.toFixed(2)} km
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/50">
-                  <span className="text-slate-500 dark:text-slate-400">Tổng km tính điểm (Max 40):</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {formatKm(team.totalCappedKm)}
+
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                    Pace TB (Tie-break)
+                  </span>
+                  <span className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 block mt-0.5">
+                    {formatPace(team.averagePaceSeconds)}
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700/50">
-                  <span className="text-slate-500 dark:text-slate-400">Tổng km thực tế:</span>
-                  <span className="font-medium text-slate-600 dark:text-slate-400">
+
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                    Tổng Km Thực
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 block mt-0.5">
                     {formatKm(team.totalActualKm)}
                   </span>
                 </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    Pace TB (Tie-breaker):
+
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                    Điểm Cap 40
                   </span>
-                  <span className="font-bold text-slate-700 dark:text-slate-300">
-                    {formatPace(team.averagePaceSeconds)}
+                  <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 block mt-0.5">
+                    {formatKm(team.totalCappedKm)}
                   </span>
                 </div>
               </div>
@@ -208,25 +578,674 @@ export default function TeamLeaderboard({
         })}
       </div>
 
-      {/* Full Detailed Standings Table */}
+      {/* Thẻ Team 4 Phong Trào CLB */}
+      {clubOnlyTeamStat && (
+        <div className="p-4 rounded-3xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <span className="w-9 h-9 rounded-2xl bg-purple-600 text-white font-black flex items-center justify-center text-sm shadow">
+              🏃
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-black text-sm sm:text-base text-purple-950 dark:text-purple-200">
+                  {clubOnlyTeamStat.teamName}
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                  Phong Trào CLB
+                </span>
+              </div>
+              <p className="text-xs text-purple-700/80 dark:text-purple-300/80 mt-0.5">
+                Chỉ tiêu: 15km & 3 buổi/tuần • Phạt 20k/km & 50k/buổi • Không áp trần 40km • Không nợ gối đầu
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Quân số:</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {clubOnlyTeamStat.memberCount} VĐV
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Tổng Km:</span>
+              <span className="font-black text-purple-600 dark:text-purple-400">
+                {formatKm(clubOnlyTeamStat.totalActualKm)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Pace TB:</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {formatPace(clubOnlyTeamStat.averagePaceSeconds)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          3. INFOGRAPHIC VINH DANH CÁ NHÂN XUẤT SẮC TRONG TUẦN (WEEKLY MVPS)
+         ========================================================================= */}
+      {!isOverall && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* King of Week */}
+          <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/30 dark:via-slate-900 dark:to-slate-900 rounded-3xl p-4 sm:p-5 border border-amber-300/60 dark:border-amber-800/40 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 text-xs font-extrabold uppercase">
+                👑 King of the Week
+              </span>
+              <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Top 1 Nam</span>
+            </div>
+
+            {kingOfWeek ? (
+              <div
+                className="flex items-center space-x-3 cursor-pointer group"
+                onClick={() => onSelectUser && onSelectUser(kingOfWeek.user)}
+              >
+                <img
+                  src={kingOfWeek.user.avatar}
+                  alt={kingOfWeek.user.name}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-400 shadow-md group-hover:scale-105 transition"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition">
+                    {kingOfWeek.user.name}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {kingOfWeek.team?.name?.split('-')[0]?.trim()}
+                  </div>
+                  <div className="text-xs font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                    {formatKm(kingOfWeek.stat.actualKm)} • Pace {formatPace(kingOfWeek.stat.averagePaceSeconds)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic py-2">Chưa ghi nhận bài chạy nam tuần này</div>
+            )}
+          </div>
+
+          {/* Queen of Week */}
+          <div className="bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent dark:from-rose-950/30 dark:via-slate-900 dark:to-slate-900 rounded-3xl p-4 sm:p-5 border border-rose-300/60 dark:border-rose-800/40 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-xs font-extrabold uppercase">
+                👑 Queen of the Week
+              </span>
+              <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Top 1 Nữ</span>
+            </div>
+
+            {queenOfWeek ? (
+              <div
+                className="flex items-center space-x-3 cursor-pointer group"
+                onClick={() => onSelectUser && onSelectUser(queenOfWeek.user)}
+              >
+                <img
+                  src={queenOfWeek.user.avatar}
+                  alt={queenOfWeek.user.name}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-rose-400 shadow-md group-hover:scale-105 transition"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition">
+                    {queenOfWeek.user.name}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {queenOfWeek.team?.name?.split('-')[0]?.trim()}
+                  </div>
+                  <div className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                    {formatKm(queenOfWeek.stat.actualKm)} • Pace {formatPace(queenOfWeek.stat.averagePaceSeconds)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic py-2">Chưa ghi nhận bài chạy nữ tuần này</div>
+            )}
+          </div>
+
+          {/* Speed Master */}
+          <div className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent dark:from-blue-950/30 dark:via-slate-900 dark:to-slate-900 rounded-3xl p-4 sm:p-5 border border-blue-300/60 dark:border-blue-800/40 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 text-xs font-extrabold uppercase">
+                ⚡ Chân Chạy Tốc Độ
+              </span>
+              <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Pace Tốt Nhất</span>
+            </div>
+
+            {speedMaster ? (
+              <div
+                className="flex items-center space-x-3 cursor-pointer group"
+                onClick={() => onSelectUser && onSelectUser(speedMaster.user)}
+              >
+                <img
+                  src={speedMaster.user.avatar}
+                  alt={speedMaster.user.name}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-blue-400 shadow-md group-hover:scale-105 transition"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition">
+                    {speedMaster.user.name}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {speedMaster.team?.name?.split('-')[0]?.trim()}
+                  </div>
+                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                    Pace {formatPace(speedMaster.stat.averagePaceSeconds)} • {formatKm(speedMaster.stat.actualKm)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic py-2">Cần hoàn thành ≥ 15km để xét giải pace</div>
+            )}
+          </div>
+
+          {/* Iron Runner */}
+          <div className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent dark:from-purple-950/30 dark:via-slate-900 dark:to-slate-900 rounded-3xl p-4 sm:p-5 border border-purple-300/60 dark:border-purple-800/40 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 text-xs font-extrabold uppercase">
+                🐝 Chăm Chỉ Nhất
+              </span>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Nhiều Buổi Nhất</span>
+            </div>
+
+            {ironRunner ? (
+              <div
+                className="flex items-center space-x-3 cursor-pointer group"
+                onClick={() => onSelectUser && onSelectUser(ironRunner.user)}
+              >
+                <img
+                  src={ironRunner.user.avatar}
+                  alt={ironRunner.user.name}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-purple-400 shadow-md group-hover:scale-105 transition"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate group-hover:text-purple-600 transition">
+                    {ironRunner.user.name}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {ironRunner.team?.name?.split('-')[0]?.trim()}
+                  </div>
+                  <div className="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">
+                    {ironRunner.stat.totalDaysRun} ngày chạy • {formatKm(ironRunner.stat.actualKm)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic py-2">Chưa ghi nhận buổi chạy nào</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          4. INFOGRAPHIC BẢNG CHI TIẾT TOÀN BỘ VẬN ĐỘNG VIÊN TUẦN (ROSTER & DEFICIT)
+         ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-orange-500" />
+              <span>
+                {isOverall
+                  ? 'Bảng Đóng Góp Chi Tiết Từng Thành Viên'
+                  : `Bảng Tổng Hợp Chi Tiết VĐV ${activeWeek.name} (${filteredMembers.length}/${users.length})`}
+              </span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Theo dõi số buổi chạy, cự ly thực tế, điểm tích lũy, trạng thái đạt chuẩn và tiền phạt từng người
+            </p>
+          </div>
+
+          {/* Ô tìm kiếm */}
+          <div className="relative w-full md:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm theo tên VĐV..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3.5 py-2 text-xs rounded-2xl bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white placeholder-slate-400"
+            />
+          </div>
+        </div>
+
+        {/* Thanh Bộ Lọc Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+          {/* Lọc Đội */}
+          <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => setTeamFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
+                teamFilter === 'ALL'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              Tất cả đội
+            </button>
+            {teams.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTeamFilter(t.id)}
+                className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
+                  teamFilter === t.id
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {t.name.split('-')[0]?.trim() || t.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Lọc Trạng Thái */}
+          <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+            <button
+              onClick={() => setStatusFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                statusFilter === 'ALL'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setStatusFilter('COMPLETED')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
+                statusFilter === 'COMPLETED'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+              }`}
+            >
+              <Check className="w-3 h-3" />
+              <span>Đạt chuẩn</span>
+            </button>
+            <button
+              onClick={() => setStatusFilter('DEFICIT')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
+                statusFilter === 'DEFICIT'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+              }`}
+            >
+              <AlertTriangle className="w-3 h-3" />
+              <span>Chưa đạt</span>
+            </button>
+            <button
+              onClick={() => setStatusFilter('EXCUSED')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
+                statusFilter === 'EXCUSED'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+              }`}
+            >
+              <span>🌴 Nghỉ phép</span>
+            </button>
+          </div>
+
+          {/* Lọc Giới Tính */}
+          <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl ml-auto">
+            <button
+              onClick={() => setGenderFilter('ALL')}
+              className={`px-2.5 py-1.5 rounded-xl font-bold transition ${
+                genderFilter === 'ALL'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setGenderFilter('MALE')}
+              className={`px-2.5 py-1.5 rounded-xl font-bold transition ${
+                genderFilter === 'MALE'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-blue-600 dark:text-blue-400'
+              }`}
+            >
+              Nam
+            </button>
+            <button
+              onClick={() => setGenderFilter('FEMALE')}
+              className={`px-2.5 py-1.5 rounded-xl font-bold transition ${
+                genderFilter === 'FEMALE'
+                  ? 'bg-rose-600 text-white'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}
+            >
+              Nữ
+            </button>
+          </div>
+        </div>
+
+        {/* Bảng Dữ Liệu Desktop */}
+        <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                <th className="py-3 px-3 w-12 text-center">STT</th>
+                <th className="py-3 px-4">Vận Động Viên</th>
+                <th className="py-3 px-3">Đội</th>
+                <th className="py-3 px-3 text-center">Buổi Chạy</th>
+                <th className="py-3 px-3 text-right">Km Thực Tế</th>
+                <th className="py-3 px-3 text-right">Điểm Đội (Cap)</th>
+                <th className="py-3 px-3 text-center">Pace TB</th>
+                <th className="py-3 px-3 text-right">Chỉ Tiêu</th>
+                <th className="py-3 px-3 text-center">Đánh Giá</th>
+                <th className="py-3 px-3 text-right">Phạt Km</th>
+                <th className="py-3 px-3 text-right">Phạt Buổi</th>
+                <th className="py-3 px-3 text-right">Tổng Phạt</th>
+                <th className="py-3 px-3 text-right">Nợ Tuần Sau</th>
+                <th className="py-3 px-3 text-center">Chi Tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
+              {filteredMembers.map(({ user, team, stat }, index) => {
+                const isPassed = stat.isCompleted;
+                const isExcused = stat.isExcused;
+                const penalty = stat.totalPenaltyAmount;
+
+                return (
+                  <tr
+                    key={user.id}
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer ${
+                      penalty > 0 ? 'bg-rose-50/20 dark:bg-rose-950/10' : ''
+                    }`}
+                    onClick={() => onSelectUser && onSelectUser(user)}
+                  >
+                    <td className="py-3 px-3 text-center font-bold text-slate-400">
+                      {index + 1}
+                    </td>
+
+                    {/* VĐV */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-2.5">
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                            <span>{user.name}</span>
+                            {user.isCaptain && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 font-bold">
+                                C
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {user.gender === 'MALE' ? 'Nam' : 'Nữ'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Đội */}
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[11px] font-bold"
+                        style={{
+                          backgroundColor: `${team?.color || '#ff5722'}15`,
+                          color: team?.color || '#ff5722',
+                        }}
+                      >
+                        {team?.name.split('-')[0]?.trim() || 'CLB'}
+                      </span>
+                    </td>
+
+                    {/* Số Buổi Chạy */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <span
+                        className={`font-bold px-2 py-0.5 rounded-lg text-xs ${
+                          stat.totalDaysRun >= 3
+                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                        }`}
+                      >
+                        {stat.totalDaysRun} / 3 buổi
+                      </span>
+                    </td>
+
+                    {/* Km Thực Tế */}
+                    <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                      {formatKm(stat.actualKm)}
+                    </td>
+
+                    {/* Điểm Đội (Cap 40km) */}
+                    <td className="py-3 px-3 text-right font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      {formatKm(stat.cappedKm)}
+                    </td>
+
+                    {/* Pace TB */}
+                    <td className="py-3 px-3 text-center font-medium whitespace-nowrap">
+                      {formatPace(stat.averagePaceSeconds)}
+                    </td>
+
+                    {/* Chỉ Tiêu */}
+                    <td className="py-3 px-3 text-right font-bold whitespace-nowrap text-slate-600 dark:text-slate-400">
+                      {stat.totalTargetKm.toFixed(1)} km
+                      {stat.previousDeficitKm > 0 && (
+                        <span className="block text-[10px] text-rose-500">
+                          (Nợ {stat.previousDeficitKm.toFixed(1)}k)
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Đánh Giá Kết Quả */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      {isExcused ? (
+                        <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-[11px]">
+                          🌴 Nghỉ phép
+                        </span>
+                      ) : isPassed ? (
+                        <span className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1">
+                          <Check className="w-3 h-3" />
+                          <span>Đạt chuẩn</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-bold text-[11px] flex items-center justify-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>Chưa đạt</span>
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Phạt Km */}
+                    <td className="py-3 px-3 text-right whitespace-nowrap font-medium">
+                      {stat.penaltyKmAmount > 0 ? (
+                        <span className="text-rose-600 font-bold">
+                          -{formatCurrency(stat.penaltyKmAmount)}
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            Thiếu {stat.roundedDeficitKm}km
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0đ</span>
+                      )}
+                    </td>
+
+                    {/* Phạt Buổi */}
+                    <td className="py-3 px-3 text-right whitespace-nowrap font-medium">
+                      {stat.penaltyDaysAmount > 0 ? (
+                        <span className="text-rose-600 font-bold">
+                          -{formatCurrency(stat.penaltyDaysAmount)}
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            Thiếu {stat.missingDays} buổi
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0đ</span>
+                      )}
+                    </td>
+
+                    {/* Tổng Phạt */}
+                    <td className="py-3 px-3 text-right whitespace-nowrap font-black">
+                      {stat.totalPenaltyAmount > 0 ? (
+                        <span className="text-rose-600 dark:text-rose-400">
+                          -{formatCurrency(stat.totalPenaltyAmount)}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-600 dark:text-emerald-400">0đ</span>
+                      )}
+                    </td>
+
+                    {/* Nợ Chuyển Tuần Sau */}
+                    <td className="py-3 px-3 text-right whitespace-nowrap font-bold text-slate-600 dark:text-slate-400">
+                      {stat.rolledOverToNextWeek > 0 ? (
+                        <span className="text-rose-500">
+                          +{stat.rolledOverToNextWeek.toFixed(2)} km
+                        </span>
+                      ) : (
+                        <span>0 km</span>
+                      )}
+                    </td>
+
+                    {/* Chi Tiết */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onSelectUser) onSelectUser(user);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-orange-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        title="Xem chi tiết các bài chạy"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Danh Sách Card Mobile */}
+        <div className="lg:hidden space-y-3">
+          {filteredMembers.map(({ user, team, stat }) => {
+            const isPassed = stat.isCompleted;
+            const isExcused = stat.isExcused;
+            const penalty = stat.totalPenaltyAmount;
+
+            return (
+              <div
+                key={user.id}
+                onClick={() => onSelectUser && onSelectUser(user)}
+                className={`p-4 rounded-2xl border transition active:scale-[0.99] cursor-pointer ${
+                  penalty > 0
+                    ? 'bg-rose-50/20 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center space-x-2.5">
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <div>
+                      <div className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>{user.name}</span>
+                        {user.isCaptain && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 font-bold">
+                            C
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span
+                          className="font-bold"
+                          style={{ color: team?.color || '#ff5722' }}
+                        >
+                          {team?.name.split('-')[0]?.trim()}
+                        </span>
+                        <span>•</span>
+                        <span>{user.gender === 'MALE' ? 'Nam' : 'Nữ'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    {isExcused ? (
+                      <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-xs">
+                        🌴 Nghỉ phép
+                      </span>
+                    ) : isPassed ? (
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        <span>Đạt chuẩn</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-bold text-xs flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Chưa đạt</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl text-center text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Km Thực Tế</span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {formatKm(stat.actualKm)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Buổi Chạy</span>
+                    <span
+                      className={`font-black ${
+                        stat.totalDaysRun >= 3 ? 'text-emerald-600' : 'text-rose-600'
+                      }`}
+                    >
+                      {stat.totalDaysRun}/3 buổi
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Pace TB</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {formatPace(stat.averagePaceSeconds)}
+                    </span>
+                  </div>
+                </div>
+
+                {penalty > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-rose-100 dark:border-rose-900/40 flex items-center justify-between text-xs">
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                      Phạt tuần này:
+                    </span>
+                    <span className="font-black text-rose-600 dark:text-rose-400">
+                      -{formatCurrency(penalty)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* =========================================================================
+          5. CHI TIẾT TỪNG ĐỘI & DANH SÁCH ĐÓNG GÓP (TEAM DRILL-DOWN)
+         ========================================================================= */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Trophy className="w-5 h-5 text-orange-500" />
-              Bảng Xếp Hạng Tập Thể Chi Tiết
+              <span>Phân Tích Đóng Góp Chi Tiết Của Các Đội Đua</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Xếp theo Bình quân km/người • Áp trần tối đa 40km/người/tuần • Quãng đường bằng nhau: Pace chậm hơn thắng!
+              Bấm vào từng đội để mở rộng danh sách đóng góp km và số buổi chạy của từng VĐV
             </p>
           </div>
           <span className="text-xs font-semibold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
-            {isOverall ? 'Tính tổng cả giải' : `Tuần ${currentWeekNumber}`}
+            {isOverall ? 'Toàn Giải' : `Tuần ${currentWeekNumber}`}
           </span>
         </div>
 
-        {/* Mobile View: Team Cards */}
-        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+        {/* Danh sách các đội Challenge */}
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {challengeTeams.map((team) => {
             const isExpanded = expandedTeamId === team.teamId;
             const reward = isOverall
@@ -235,155 +1254,99 @@ export default function TeamLeaderboard({
             const teamMembers = users.filter((u) => u.teamId === team.teamId);
 
             return (
-              <div key={team.teamId} className="p-4 space-y-3">
-                {/* Header: Rank + Team Name + Edit button */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
+              <div key={team.teamId} className="p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3">
                     {getRankBadge(team.rank)}
                     <div>
-                      <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white text-base">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          className="w-3.5 h-3.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: team.teamColor }}
                         />
-                        <span>{team.teamName}</span>
+                        <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+                          {team.teamName}
+                        </h3>
+                        {reward > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+                            +{formatCurrency(reward)}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span>Trưởng nhóm: {users.find((u) => u.isCaptain && u.teamId === team.teamId)?.name || 'Chưa có'}</span>
-                        <span>•</span>
-                        <span className="font-semibold">{team.memberCount} VĐV</span>
-                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Quân số: <strong>{team.memberCount} VĐV</strong> • Đội trưởng: {users.find((u) => u.isCaptain && u.teamId === team.teamId)?.name || 'Chưa chỉ định'}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {reward > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        +{formatCurrency(reward)}
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-slate-500 text-xs block">Km TB / Người:</span>
+                      <span className="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400">
+                        {team.averageCappedKmPerMember.toFixed(2)} km
                       </span>
-                    )}
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleOpenEdit(team.teamId)}
-                        className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/80 text-xs font-bold transition active:scale-95"
-                        title="Sửa tên đội"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    </div>
+
+                    <button
+                      onClick={() => toggleExpand(team.teamId)}
+                      className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition"
+                    >
+                      <span>{isExpanded ? 'Thu gọn' : `Xem ${teamMembers.length} VĐV`}</span>
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Main Metric: Bình Quân / Người */}
-                <div className="bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-900/50 rounded-2xl p-3 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold block">
-                      Bình quân km / người (Cap 40)
-                    </span>
-                    <span className="text-xl font-black text-orange-600 dark:text-orange-400">
-                      {team.averageCappedKmPerMember.toFixed(2)} km
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[11px] text-slate-500 block">Pace TB (Tie-breaker)</span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center justify-end gap-1">
-                      <Zap className="w-3.5 h-3.5 text-amber-500" />
-                      {formatPace(team.averagePaceSeconds)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Sub-metrics: Tổng thực tế & Tổng tính điểm */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 block text-[11px]">Tổng km thực tế</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                      {formatKm(team.totalActualKm)}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 block text-[11px]">Tổng điểm (Cap 40)</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                      {formatKm(team.totalCappedKm)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Member Drill-down button */}
-                <button
-                  onClick={() => toggleExpand(team.teamId)}
-                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                >
-                  <span>{isExpanded ? 'Ẩn bớt thành viên' : `Xem đóng góp ${teamMembers.length} thành viên`}</span>
-                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
-
-                {/* Expanded Member list on mobile */}
+                {/* Danh sách thành viên mở rộng */}
                 {isExpanded && (
-                  <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2">
                     {teamMembers.map((member) => {
-                      let memberActualKm = 0;
-                      let daysRun = 0;
-                      let isExcused = false;
-
-                      if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
-                        const stats = userWeeklyStatsMap[member.id] || [];
-                        const stat = stats.find((s) => s.weekNumber === currentWeekNumber);
-                        if (stat) {
-                          memberActualKm = stat.actualKm;
-                          daysRun = stat.totalDaysRun;
-                          isExcused = Boolean(stat.isExcused);
-                        }
-                      } else if (userWeeklyStatsMap) {
-                        const stats = userWeeklyStatsMap[member.id] || [];
-                        memberActualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
-                        daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
-                      }
-
-                      const isOverCapped = memberActualKm > 40;
+                      const userStat = memberWeeklyStats.find((m) => m.user.id === member.id)?.stat;
+                      const actualKm = userStat?.actualKm || 0;
+                      const daysRun = userStat?.totalDaysRun || 0;
+                      const isTargetMet = userStat?.isCompleted || false;
+                      const isExcused = userStat?.isExcused || false;
 
                       return (
                         <div
                           key={member.id}
-                          className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between"
+                          onClick={() => onSelectUser && onSelectUser(member)}
+                          className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer hover:border-orange-400 transition"
                         >
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2.5">
                             <img
                               src={member.avatar}
                               alt={member.name}
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                              className="w-9 h-9 rounded-full object-cover border border-slate-200"
                             />
                             <div>
                               <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1">
                                 {member.name}
                                 {member.isCaptain && (
                                   <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
-                                    Captain
+                                    C
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                                <span>{member.gender === 'MALE' ? 'Nam' : 'Nữ'}</span>
-                                <span>•</span>
-                                {isExcused ? (
-                                  <span className="text-amber-600 dark:text-amber-400 font-bold">🌴 Nghỉ bất khả kháng</span>
-                                ) : (
-                                  <span>{daysRun} buổi</span>
-                                )}
+                              <div className="text-[10px] text-slate-400">
+                                {isExcused ? '🌴 Nghỉ phép' : `${daysRun} buổi • Pace ${formatPace(userStat?.averagePaceSeconds || 0)}`}
                               </div>
                             </div>
                           </div>
 
                           <div className="text-right">
                             <div className="font-black text-xs text-slate-900 dark:text-white">
-                              {formatKm(memberActualKm)}
+                              {formatKm(actualKm)}
                             </div>
-                            {isOverCapped ? (
-                              <span className="text-[9px] font-bold px-1 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
-                                Cap 40km
-                              </span>
-                            ) : (
-                              <span className="text-[9px] text-slate-400">100%</span>
-                            )}
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                                isTargetMet
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                  : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
+                              }`}
+                            >
+                              {isTargetMet ? 'Đạt' : 'Chưa đạt'}
+                            </span>
                           </div>
                         </div>
                       );
@@ -394,499 +1357,128 @@ export default function TeamLeaderboard({
             );
           })}
         </div>
+      </div>
 
-        {/* Desktop View: Full Standings Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <tr>
-                <th className="py-3.5 px-4 text-center w-16">Thứ Hạng</th>
-                <th className="py-3.5 px-4">Tên Đội</th>
-                <th className="py-3.5 px-4 text-center">Quân Số</th>
-                <th className="py-3.5 px-4 text-right">Tổng Thực Tế</th>
-                <th className="py-3.5 px-4 text-right">Tổng Điểm (Cap 40)</th>
-                <th className="py-3.5 px-4 text-right text-orange-600 dark:text-orange-400 font-extrabold">
-                  Bình Quân / Người
-                </th>
-                <th className="py-3.5 px-4 text-right">Pace TB</th>
-                <th className="py-3.5 px-4 text-right">Tiền Thưởng</th>
-                <th className="py-3.5 px-4 text-center">Chi Tiết</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {challengeTeams.map((team) => {
-                const isExpanded = expandedTeamId === team.teamId;
-                const reward = isOverall
-                  ? (team as OverallTeamStat).finalRewardAmount
-                  : (team as TeamWeeklyStat).rewardAmount;
+      {/* =========================================================================
+          6. INFOGRAPHIC CONTAINER ẨN ĐỂ XUẤT ẢNH PNG (HD RESOLUTION)
+         ========================================================================= */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div
+          ref={exportInfographicRef}
+          style={{ width: '850px', backgroundColor: '#0f172a' }}
+          className="p-8 text-white font-sans space-y-6"
+        >
+          {/* Header Poster */}
+          <div className="flex items-center justify-between border-b border-slate-700 pb-5">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-400 flex items-center justify-center font-black text-2xl text-white shadow-xl">
+                🔥
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+                  CNHP RUNNING CLUB • THU ĐÔNG 2026
+                </h2>
+                <p className="text-xs text-orange-400 font-bold mt-0.5 tracking-wide">
+                  {isOverall
+                    ? 'BẢNG TỔNG HỢP KẾT QUẢ TOÀN GIẢI CHUNG CUỘC'
+                    : `BẢNG TỔNG HỢP KẾT QUẢ ${activeWeek.name.toUpperCase()} (${activeWeek.startDate} - ${activeWeek.endDate})`}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-bold">
+                Tỷ lệ hoàn thành
+              </span>
+              <span className="text-base font-black text-emerald-400">
+                {completedMembersCount} / {users.length} VĐV
+              </span>
+            </div>
+          </div>
 
-                // Lấy danh sách thành viên của team
-                const teamMembers = users.filter((u) => u.teamId === team.teamId);
+          {/* 4 Chỉ số KPI Infographic */}
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+              <span className="text-[11px] text-slate-400 block font-medium">Tổng Cự Ly CLB</span>
+              <span className="text-lg font-black text-orange-400">{formatKm(totalActualKmWeek)}</span>
+            </div>
+            <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+              <span className="text-[11px] text-slate-400 block font-medium">Bài Chạy Hợp Lệ</span>
+              <span className="text-lg font-black text-white">{totalValidRunsWeek}</span>
+            </div>
+            <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+              <span className="text-[11px] text-slate-400 block font-medium">
+                {isOverall ? 'Thưởng Chung Cuộc' : 'Thưởng Tuần'}
+              </span>
+              <span className="text-lg font-black text-yellow-400">{formatCurrency(totalRewardAmountWeek)}</span>
+            </div>
+            <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+              <span className="text-[11px] text-slate-400 block font-medium">Tổng Phạt Tuần</span>
+              <span className="text-lg font-black text-rose-400">{formatCurrency(totalPenaltyAmountWeek)}</span>
+            </div>
+          </div>
 
+          {/* Xếp Hạng Đội Infographic */}
+          <div className="bg-slate-800/60 p-4 rounded-2xl border border-slate-700 space-y-2.5">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span>Xếp Hạng Đội {isOverall ? 'Chung Cuộc' : activeWeek.name}</span>
+            </h4>
+            <div className="space-y-2">
+              {challengeTeams.map((t) => {
+                const rew = isOverall ? (t as OverallTeamStat).finalRewardAmount : (t as TeamWeeklyStat).rewardAmount;
                 return (
-                  <React.Fragment key={team.teamId}>
-                    <tr
-                      onClick={() => toggleExpand(team.teamId)}
-                      className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${
-                        isExpanded ? 'bg-orange-50/50 dark:bg-orange-950/20' : ''
-                      }`}
-                    >
-                      <td className="py-4 px-4 text-center font-bold">{getRankBadge(team.rank)}</td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2.5">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm"
-                            style={{ backgroundColor: team.teamColor }}
-                          />
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-bold text-slate-900 dark:text-white">
-                                {team.teamName}
-                              </span>
-                              {isAdmin && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenEdit(team.teamId);
-                                  }}
-                                  className="px-2 py-0.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/80 text-[11px] font-bold flex items-center gap-1 transition"
-                                  title="Đổi tên đội đua"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                  <span>Sửa tên</span>
-                                </button>
-                              )}
-                            </div>
-                            <span className="text-xs text-slate-500">
-                              Trưởng nhóm: {users.find((u) => u.isCaptain && u.teamId === team.teamId)?.name || 'Chưa chỉ định'}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          <Users className="w-3 h-3" />
-                          {team.memberCount} VĐV
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-right font-medium text-slate-600 dark:text-slate-400">
-                        {formatKm(team.totalActualKm)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-bold text-slate-800 dark:text-slate-200">
-                        {formatKm(team.totalCappedKm)}
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <span className="font-black text-base text-orange-600 dark:text-orange-400">
-                          {team.averageCappedKmPerMember.toFixed(2)} km
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-right font-semibold text-slate-700 dark:text-slate-300">
-                        {formatPace(team.averagePaceSeconds)}
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        {reward > 0 ? (
-                          <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                            +{formatCurrency(reward)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">0 đ</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-all">
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                      </td>
-                    </tr>
-
-                    {/* Drill-down: Danh sách thành viên đóng góp km */}
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={9} className="py-4 px-4 sm:px-6 bg-slate-50/80 dark:bg-slate-800/40">
-                          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center justify-between">
-                              <span>Chi Tiết Đóng Góp Thành Viên ({team.teamName})</span>
-                              <span className="text-orange-600 font-semibold lowercase">
-                                *thành viên chạy &gt; 40km được tính tối đa 40km cho team
-                              </span>
-                            </h4>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {teamMembers.map((member) => {
-                                  let memberActualKm = 0;
-                                  let memberCappedKm = 0;
-                                  let daysRun = 0;
-                                  let isExcused = false;
-
-                                  if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
-                                    const stats = userWeeklyStatsMap[member.id] || [];
-                                    const stat = stats.find((s) => s.weekNumber === currentWeekNumber);
-                                    if (stat) {
-                                      memberActualKm = stat.actualKm;
-                                      memberCappedKm = stat.cappedKm;
-                                      daysRun = stat.totalDaysRun;
-                                      isExcused = Boolean(stat.isExcused);
-                                    }
-                                  } else if (userWeeklyStatsMap) {
-                                    const stats = userWeeklyStatsMap[member.id] || [];
-                                    memberActualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
-                                    memberCappedKm = stats.reduce((sum, s) => sum + s.cappedKm, 0);
-                                    daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
-                                  }
-
-                                  const isOverCapped = memberActualKm > 40;
-
-                                  return (
-                                    <div
-                                      key={member.id}
-                                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between"
-                                    >
-                                      <div className="flex items-center space-x-2.5">
-                                        <img
-                                          src={member.avatar}
-                                          alt={member.name}
-                                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                                        />
-                                        <div>
-                                          <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1">
-                                            {member.name}
-                                            {member.isCaptain && (
-                                              <span className="text-[10px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
-                                                Captain
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                                            <span>{member.gender === 'MALE' ? 'Nam' : 'Nữ'}</span>
-                                            <span>•</span>
-                                            {isExcused ? (
-                                              <span className="text-amber-600 dark:text-amber-400 font-bold">🌴 Nghỉ bất khả kháng</span>
-                                            ) : (
-                                              <span>{daysRun} buổi chạy</span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                    <div className="text-right">
-                                      <div className="font-extrabold text-sm text-slate-900 dark:text-white">
-                                        {formatKm(memberActualKm)}
-                                      </div>
-                                      {isOverCapped ? (
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
-                                          Tính điểm: 40km
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-slate-400">Đóng góp 100%</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                  <div
+                    key={t.teamId}
+                    className="flex items-center justify-between p-3 bg-slate-900/90 rounded-xl border border-slate-700 text-xs"
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <span className="font-black w-6 text-center text-amber-400 text-sm">
+                        {t.rank === 1 ? '🥇' : t.rank === 2 ? '🥈' : '🥉'} {t.rank}
+                      </span>
+                      <span className="font-black text-white text-sm">{t.teamName}</span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-slate-400">Pace: {formatPace(t.averagePaceSeconds)}</span>
+                      <span className="font-black text-orange-400 text-sm">{formatKm(t.averageCappedKmPerMember)}/VĐV</span>
+                      {rew > 0 && (
+                        <span className="text-amber-400 font-bold text-xs">+{formatCurrency(rew)}</span>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Top Cá Nhân Xuất Sắc */}
+          {!isOverall && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3.5 bg-slate-800/60 rounded-2xl border border-slate-700 text-xs">
+                <span className="text-amber-400 font-bold block mb-1">👑 King of Week (Top 1 Nam):</span>
+                <div className="font-black text-white text-sm">{kingOfWeek?.user.name || '---'}</div>
+                <div className="text-slate-400 text-[11px] mt-0.5">
+                  {kingOfWeek ? `${formatKm(kingOfWeek.stat.actualKm)} • Pace ${formatPace(kingOfWeek.stat.averagePaceSeconds)}` : ''}
+                </div>
+              </div>
+              <div className="p-3.5 bg-slate-800/60 rounded-2xl border border-slate-700 text-xs">
+                <span className="text-rose-400 font-bold block mb-1">👑 Queen of Week (Top 1 Nữ):</span>
+                <div className="font-black text-white text-sm">{queenOfWeek?.user.name || '---'}</div>
+                <div className="text-slate-400 text-[11px] mt-0.5">
+                  {queenOfWeek ? `${formatKm(queenOfWeek.stat.actualKm)} • Pace ${formatPace(queenOfWeek.stat.averagePaceSeconds)}` : ''}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Card */}
+          <div className="border-t border-slate-700 pt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>CLB Chạy Bộ CNHP • Challenge Thu Đông 2026</span>
+            <span>Thủ quỹ Long Trịnh: 19030671988989 (Techcombank)</span>
+          </div>
         </div>
       </div>
 
-      {/* Khối Hiển Thị Dành Riêng Cho Đội Phong Trào CLB (Team 4 - Ngoài Challenge) */}
-      {clubOnlyTeamsList.map((clubTeam) => {
-        const teamMembers = users.filter((u) => u.teamId === clubTeam.id);
-
-        // Tính toán thống kê thành viên đạt chỉ tiêu 15km và 3 buổi
-        const memberStatsList = teamMembers.map((member) => {
-          let actualKm = 0;
-          let daysRun = 0;
-          let paceSec = 0;
-          let isExcused = false;
-          let isCompleted = false;
-          let penaltyAmount = 0;
-
-          if (!isOverall && currentWeekNumber && userWeeklyStatsMap) {
-            const stats = userWeeklyStatsMap[member.id] || [];
-            const stat = stats.find((s) => s.weekNumber === currentWeekNumber);
-            if (stat) {
-              actualKm = stat.actualKm;
-              daysRun = stat.totalDaysRun;
-              paceSec = stat.averagePaceSeconds;
-              isExcused = Boolean(stat.isExcused);
-              isCompleted = Boolean(stat.isCompleted);
-              penaltyAmount = stat.totalPenaltyAmount || 0;
-            }
-          } else if (userWeeklyStatsMap) {
-            const stats = userWeeklyStatsMap[member.id] || [];
-            actualKm = stats.reduce((sum, s) => sum + s.actualKm, 0);
-            daysRun = stats.reduce((sum, s) => sum + s.totalDaysRun, 0);
-            penaltyAmount = stats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
-            const totalMovingTime = stats.reduce((sum, s) => sum + s.totalMovingTimeSec, 0);
-            paceSec = actualKm > 0 ? totalMovingTime / actualKm : 0;
-            isCompleted = actualKm >= 15 * (stats.length || 1);
-          }
-
-          const targetKm = 15.0;
-          const targetDays = 3;
-          const isTargetMet = isCompleted || (actualKm >= targetKm && daysRun >= targetDays);
-          const missingKm = Math.max(0, Math.round((targetKm - actualKm) * 100) / 100);
-          const missingDays = Math.max(0, targetDays - daysRun);
-          const progressKmPercent = Math.min(100, Math.round((actualKm / targetKm) * 100));
-
-          return {
-            member,
-            actualKm,
-            daysRun,
-            paceSec,
-            isExcused,
-            isTargetMet,
-            missingKm,
-            missingDays,
-            progressKmPercent,
-            penaltyAmount,
-          };
-        });
-
-        // Sắp xếp thành viên: người chạy nhiều km hơn xếp trước
-        memberStatsList.sort((a, b) => b.actualKm - a.actualKm);
-
-        const totalClubActualKm = memberStatsList.reduce((sum, m) => sum + m.actualKm, 0);
-        const totalClubPenalties = memberStatsList.reduce((sum, m) => sum + m.penaltyAmount, 0);
-        const completedMembersCount = memberStatsList.filter((m) => m.isTargetMet).length;
-        const completionRate = teamMembers.length > 0 ? Math.round((completedMembersCount / teamMembers.length) * 100) : 0;
-
-        return (
-          <div
-            key={clubTeam.id}
-            className="rounded-3xl bg-gradient-to-br from-purple-900/10 via-indigo-900/5 to-transparent dark:from-purple-950/40 dark:via-indigo-950/20 dark:to-slate-900 border-2 border-purple-300/80 dark:border-purple-800/80 shadow-md p-5 sm:p-6 space-y-6"
-          >
-            {/* Header: Team name + badges + Edit button */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-purple-200/70 dark:border-purple-800/60">
-              <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="w-4 h-4 rounded-full shadow-sm flex-shrink-0"
-                    style={{ backgroundColor: clubTeam.color || '#8b5cf6' }}
-                  />
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    {clubTeam.name}
-                  </h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                    💜 Phong Trào CLB
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    Ngoài Challenge
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
-                  Đội dành riêng cho các thành viên Câu Lạc Bộ chạy bộ duy trì thói quen sức khỏe: <strong className="text-purple-700 dark:text-purple-300">Tối thiểu 15.0 km & 3 buổi / tuần</strong>. Áp dụng thể lệ phạt tiền nếu thiếu số tối thiểu này (20.000đ/km thiếu và 50.000đ/buổi thiếu như Challenge). Không nợ gối đầu, không thu quỹ tham gia giải 200.000đ và không giới hạn trần 40km.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {isAdmin ? (
-                  <button
-                    onClick={() => handleOpenEdit(clubTeam.id)}
-                    className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all flex items-center gap-1.5"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Sửa Tên / Màu Đội (Admin)</span>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Stats Overview 3 Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div className="bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/50 flex items-center justify-between shadow-sm">
-                <div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">Quân Số Đội</span>
-                  <span className="text-2xl font-black text-slate-900 dark:text-white">
-                    {teamMembers.length} <span className="text-sm font-semibold text-slate-500">thành viên</span>
-                  </span>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                  <Users className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/50 flex items-center justify-between shadow-sm">
-                <div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">Đạt Chỉ Tiêu Tuần (≥15km & ≥3b)</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                      {completedMembersCount} / {teamMembers.length}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500">
-                      ({completionRate}%)
-                    </span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                  ✓
-                </div>
-              </div>
-
-              <div className="bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/50 flex items-center justify-between shadow-sm">
-                <div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">Tổng Cự Ly Toàn Đội</span>
-                  <span className="text-2xl font-black text-purple-600 dark:text-purple-400">
-                    {formatKm(totalClubActualKm)}
-                  </span>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                  🏃
-                </div>
-              </div>
-            </div>
-
-            {/* Danh Sách Thành Viên & Tiến Độ Chạy */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Tiến Độ Từng Thành Viên</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold">
-                    Mục tiêu: 15km & 3 buổi
-                  </span>
-                </h4>
-              </div>
-
-              {teamMembers.length === 0 ? (
-                <div className="text-center py-10 px-4 bg-white/70 dark:bg-slate-900/60 rounded-2xl border border-dashed border-purple-300 dark:border-purple-800 space-y-2">
-                  <div className="text-3xl">🏃‍♂️</div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                    Hiện chưa có thành viên nào trong {clubTeam.name}
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                    Quản trị viên (Admin) có thể chuyển các thành viên CLB không tham gia Challenge Thu Đông vào đội này trong màn hình <strong>Quản Trị / Trọng Tài</strong> → <strong>Phân chia Đội</strong>.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {memberStatsList.map(({ member, actualKm, daysRun, paceSec, isExcused, isTargetMet, missingKm, missingDays, progressKmPercent, penaltyAmount }) => {
-                    return (
-                      <div
-                        key={member.id}
-                        onClick={() => onSelectUser && onSelectUser(member)}
-                        className={`p-4 rounded-2xl bg-white dark:bg-slate-900/90 border transition-all ${
-                          onSelectUser ? 'cursor-pointer hover:shadow-md hover:border-purple-400 dark:hover:border-purple-600 active:scale-[0.99]' : ''
-                        } ${
-                          isTargetMet
-                            ? 'border-emerald-300 dark:border-emerald-800/80 shadow-sm'
-                            : penaltyAmount > 0
-                            ? 'border-rose-300 dark:border-rose-900/50'
-                            : 'border-purple-200/70 dark:border-purple-900/40'
-                        }`}
-                      >
-                        {/* Top: Avatar, Name, Status Badge */}
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center space-x-2.5 min-w-0">
-                            <img
-                              src={member.avatar}
-                              alt={member.name}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-purple-300 dark:border-purple-700 flex-shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="font-bold text-sm text-slate-900 dark:text-white truncate flex items-center gap-1">
-                                <span>{member.name}</span>
-                                {member.isCaptain && (
-                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold shrink-0">
-                                    C
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                {member.gender === 'MALE' ? '🏃‍♂️ Nam' : '🏃‍♀️ Nữ'}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="shrink-0">
-                            {isTargetMet ? (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                                ✓ Đạt chỉ tiêu
-                              </span>
-                            ) : penaltyAmount > 0 ? (
-                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
-                                Phạt: {formatCurrency(penaltyAmount)}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
-                                🏃 Đang chạy
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Middle: Progress Bar for 15km */}
-                        <div className="space-y-1 mb-2.5">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-medium">Tiến độ cự ly:</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">
-                              <strong className={isTargetMet ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}>
-                                {formatKm(actualKm)}
-                              </strong>
-                              {' '}/ 15.0 km
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isTargetMet
-                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                                  : 'bg-gradient-to-r from-purple-500 to-indigo-500'
-                              }`}
-                              style={{ width: `${progressKmPercent}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Bottom: Days Run & Pace & Need reminder */}
-                        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-slate-500 text-[11px]">Buổi chạy:</span>
-                            <div className="flex items-center gap-1">
-                              {[1, 2, 3].map((b) => (
-                                <span
-                                  key={b}
-                                  className={`w-2 h-2 rounded-full ${
-                                    daysRun >= b ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
-                                  }`}
-                                />
-                              ))}
-                              <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] ml-0.5">
-                                {daysRun}/3
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            {isTargetMet ? (
-                              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                Xuất sắc 🎉 (0đ phạt)
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                                Còn thiếu {missingKm > 0 ? `${missingKm}km` : ''}{missingKm > 0 && missingDays > 0 ? ', ' : ''}{missingDays > 0 ? `${missingDays} buổi` : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Modal Chỉnh Sửa Tên Đội Đua */}
+      {/* Modal Chỉnh Sửa Tên Đội Đua (Admin) */}
       <EditTeamModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
