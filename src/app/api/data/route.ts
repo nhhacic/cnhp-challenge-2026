@@ -39,6 +39,12 @@ export async function GET() {
     for (const req of leaveRequests) {
       if (req.status === 'APPROVED') {
         approvedLeavesMap.set(`${req.userId}_${req.weekNumber}`, req);
+        const userIdStr = String(req.userId);
+        if (userIdStr.startsWith('user-')) {
+          approvedLeavesMap.set(`${userIdStr.replace('user-', '')}_${req.weekNumber}`, req);
+        } else {
+          approvedLeavesMap.set(`user-${userIdStr}_${req.weekNumber}`, req);
+        }
       }
     }
 
@@ -66,7 +72,10 @@ export async function GET() {
 
       for (const week of weeks) {
         const isEvaluated = evaluatedWeeksSet.has(week.weekNumber);
-        const leave = approvedLeavesMap.get(`${user.id}_${week.weekNumber}`);
+        const leave =
+          approvedLeavesMap.get(`${user.id}_${week.weekNumber}`) ||
+          (user.stravaId ? approvedLeavesMap.get(`${user.stravaId}_${week.weekNumber}`) : undefined) ||
+          (user.stravaId ? approvedLeavesMap.get(`user-${user.stravaId}_${week.weekNumber}`) : undefined);
         const isExcused = Boolean(leave);
         const leaveReason = leave?.reason;
         const stat = calculateUserWeeklyStat(

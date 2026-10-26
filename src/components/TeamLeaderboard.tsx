@@ -78,7 +78,7 @@ export default function TeamLeaderboard({
 
   // Bộ lọc cho Bảng Tổng Hợp Thành Viên Tuần
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'DEFICIT' | 'EXCUSED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'DEFICIT'>('ALL');
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -153,13 +153,18 @@ export default function TeamLeaderboard({
     });
   }, [users, userWeeklyStatsMap, currentWeekNumber, teamMap]);
 
-  // Các chỉ số KPI tổng hợp tuần toàn CLB
-  const totalActualKmWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.actualKm, 0);
-  const totalCappedKmWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.cappedKm, 0);
-  const totalValidRunsWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.validActivitiesCount, 0);
-  const totalPenaltyAmountWeek = memberWeeklyStats.reduce((sum, r) => sum + r.stat.totalPenaltyAmount, 0);
-  const completedMembersCount = memberWeeklyStats.filter((r) => r.stat.isCompleted).length;
-  const excusedMembersCount = memberWeeklyStats.filter((r) => r.stat.isExcused).length;
+  // Danh sách VĐV công bố trên Bảng Tổng Hợp Tuần (thành viên được duyệt nghỉ phép sẽ không công bố)
+  const publishedMembers = useMemo(() => {
+    return isOverall ? memberWeeklyStats : memberWeeklyStats.filter((r) => !r.stat.isExcused);
+  }, [memberWeeklyStats, isOverall]);
+  const publishedMembersCount = publishedMembers.length;
+
+  // Các chỉ số KPI tổng hợp tuần toàn CLB (dựa trên các VĐV thi đấu được công bố)
+  const totalActualKmWeek = publishedMembers.reduce((sum, r) => sum + r.stat.actualKm, 0);
+  const totalCappedKmWeek = publishedMembers.reduce((sum, r) => sum + r.stat.cappedKm, 0);
+  const totalValidRunsWeek = publishedMembers.reduce((sum, r) => sum + r.stat.validActivitiesCount, 0);
+  const totalPenaltyAmountWeek = publishedMembers.reduce((sum, r) => sum + r.stat.totalPenaltyAmount, 0);
+  const completedMembersCount = publishedMembers.filter((r) => r.stat.isCompleted).length;
   const totalRewardAmountWeek = challengeTeams.reduce((sum, t) => {
     const rew = isOverall
       ? (t as OverallTeamStat).finalRewardAmount || 0
@@ -167,23 +172,23 @@ export default function TeamLeaderboard({
     return sum + rew;
   }, 0);
 
-  // Danh hiệu cá nhân xuất sắc nhất tuần
-  const maleRunners = memberWeeklyStats
+  // Danh hiệu cá nhân xuất sắc nhất tuần (chỉ xét VĐV thi đấu, không xét người nghỉ phép)
+  const maleRunners = publishedMembers
     .filter((r) => r.user.gender === 'MALE' && r.stat.actualKm > 0)
     .sort((a, b) => b.stat.actualKm - a.stat.actualKm);
   const kingOfWeek = maleRunners[0] || null;
 
-  const femaleRunners = memberWeeklyStats
+  const femaleRunners = publishedMembers
     .filter((r) => r.user.gender === 'FEMALE' && r.stat.actualKm > 0)
     .sort((a, b) => b.stat.actualKm - a.stat.actualKm);
   const queenOfWeek = femaleRunners[0] || null;
 
-  const qualifiedForPace = memberWeeklyStats
+  const qualifiedForPace = publishedMembers
     .filter((r) => r.stat.actualKm >= 15.0 && r.stat.averagePaceSeconds > 0)
     .sort((a, b) => a.stat.averagePaceSeconds - b.stat.averagePaceSeconds);
   const speedMaster = qualifiedForPace[0] || null;
 
-  const activeRunners = [...memberWeeklyStats]
+  const activeRunners = [...publishedMembers]
     .filter((r) => r.stat.totalDaysRun > 0)
     .sort((a, b) => {
       if (b.stat.totalDaysRun !== a.stat.totalDaysRun) {
@@ -193,13 +198,12 @@ export default function TeamLeaderboard({
     });
   const ironRunner = activeRunners[0] || null;
 
-  // Lọc danh sách thành viên theo bộ lọc
-  const filteredMembers = memberWeeklyStats.filter(({ user, team, stat }) => {
+  // Lọc danh sách thành viên theo bộ lọc (từ publishedMembers)
+  const filteredMembers = publishedMembers.filter(({ user, team, stat }) => {
     if (teamFilter !== 'ALL' && user.teamId !== teamFilter) return false;
     if (genderFilter !== 'ALL' && user.gender !== genderFilter) return false;
     if (statusFilter === 'COMPLETED' && !stat.isCompleted) return false;
-    if (statusFilter === 'DEFICIT' && (stat.isCompleted || stat.isExcused)) return false;
-    if (statusFilter === 'EXCUSED' && !stat.isExcused) return false;
+    if (statusFilter === 'DEFICIT' && stat.isCompleted) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const matchName = user.name.toLowerCase().includes(q);
@@ -290,7 +294,7 @@ export default function TeamLeaderboard({
       text += `⏱️ Thời gian: ${activeWeek.startDate} đến ${activeWeek.endDate}\n`;
     }
     text += `🏃 Tổng quãng đường CLB: ${formatKm(totalActualKmWeek)} (${totalValidRunsWeek} bài chạy hợp lệ)\n`;
-    text += `🎯 Tỷ lệ hoàn thành: ${completedMembersCount}/${users.length} VĐV (${Math.round((completedMembersCount / (users.length || 1)) * 100)}%)\n\n`;
+    text += `🎯 Tỷ lệ hoàn thành: ${completedMembersCount}/${publishedMembersCount} VĐV (${Math.round((completedMembersCount / (publishedMembersCount || 1)) * 100)}%)\n\n`;
 
     text += `🏆 XẾP HẠNG ĐỘI ${isOverall ? 'CHUNG CUỘC' : `TUẦN ${currentWeekNumber}`}:\n`;
     challengeTeams.forEach((t) => {
@@ -316,7 +320,7 @@ export default function TeamLeaderboard({
         text += `⚡ Chân Chạy Tốc Độ: ${speedMaster.user.name} (Pace ${formatPace(speedMaster.stat.averagePaceSeconds)} - ${formatKm(speedMaster.stat.actualKm)})\n`;
       }
 
-      const deficitMembers = memberWeeklyStats.filter((r) => !r.stat.isCompleted && !r.stat.isExcused);
+      const deficitMembers = publishedMembers.filter((r) => !r.stat.isCompleted);
       if (deficitMembers.length > 0) {
         text += `\n⚠️ DANH SÁCH CHƯA ĐẠT CHỈ TIÊU & PHẠT TUẦN:\n`;
         deficitMembers.forEach((r) => {
@@ -433,10 +437,10 @@ export default function TeamLeaderboard({
               <span>Đạt Chỉ Tiêu</span>
             </div>
             <div className="text-lg sm:text-xl font-black text-emerald-400">
-              {completedMembersCount} / {users.length}
+              {completedMembersCount} / {publishedMembersCount}
             </div>
             <div className="text-[11px] text-emerald-300/80 mt-0.5">
-              {Math.round((completedMembersCount / (users.length || 1)) * 100)}% thành viên
+              {Math.round((completedMembersCount / (publishedMembersCount || 1)) * 100)}% VĐV thi đấu
             </div>
           </div>
 
@@ -468,13 +472,13 @@ export default function TeamLeaderboard({
 
           <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/10 backdrop-blur-sm">
             <div className="flex items-center space-x-2 text-slate-400 text-xs font-semibold mb-1">
-              <Heart className="w-3.5 h-3.5 text-purple-400" />
-              <span>Nghỉ Phép</span>
+              <Users className="w-3.5 h-3.5 text-blue-400" />
+              <span>VĐV Thi Đấu</span>
             </div>
-            <div className="text-lg sm:text-xl font-black text-purple-300">
-              {excusedMembersCount} VĐV
+            <div className="text-lg sm:text-xl font-black text-blue-300">
+              {publishedMembersCount} VĐV
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Lý do bất khả kháng</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Tham gia tính điểm tuần</div>
           </div>
         </div>
       </div>
@@ -785,7 +789,7 @@ export default function TeamLeaderboard({
               <span>
                 {isOverall
                   ? 'Bảng Đóng Góp Chi Tiết Từng Thành Viên'
-                  : `Bảng Tổng Hợp Chi Tiết VĐV ${activeWeek.name} (${filteredMembers.length}/${users.length})`}
+                  : `Bảng Tổng Hợp Chi Tiết VĐV ${activeWeek.name} (${filteredMembers.length}/${publishedMembersCount})`}
               </span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -869,16 +873,6 @@ export default function TeamLeaderboard({
               <AlertTriangle className="w-3 h-3" />
               <span>Chưa đạt</span>
             </button>
-            <button
-              onClick={() => setStatusFilter('EXCUSED')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 ${
-                statusFilter === 'EXCUSED'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
-              }`}
-            >
-              <span>🌴 Nghỉ phép</span>
-            </button>
           </div>
 
           {/* Lọc Giới Tính */}
@@ -940,7 +934,6 @@ export default function TeamLeaderboard({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
               {filteredMembers.map(({ user, team, stat }, index) => {
                 const isPassed = stat.isCompleted;
-                const isExcused = stat.isExcused;
                 const penalty = stat.totalPenaltyAmount;
 
                 return (
@@ -1032,11 +1025,7 @@ export default function TeamLeaderboard({
 
                     {/* Đánh Giá Kết Quả */}
                     <td className="py-3 px-3 text-center whitespace-nowrap">
-                      {isExcused ? (
-                        <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-[11px]">
-                          🌴 Nghỉ phép
-                        </span>
-                      ) : isPassed ? (
+                      {isPassed ? (
                         <span className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1">
                           <Check className="w-3 h-3" />
                           <span>Đạt chuẩn</span>
@@ -1166,11 +1155,7 @@ export default function TeamLeaderboard({
                   </div>
 
                   <div>
-                    {isExcused ? (
-                      <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-xs">
-                        🌴 Nghỉ phép
-                      </span>
-                    ) : isPassed ? (
+                    {isPassed ? (
                       <span className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1">
                         <Check className="w-3 h-3" />
                         <span>Đạt chuẩn</span>
@@ -1251,7 +1236,13 @@ export default function TeamLeaderboard({
             const reward = isOverall
               ? (team as OverallTeamStat).finalRewardAmount
               : (team as TeamWeeklyStat).rewardAmount;
-            const teamMembers = users.filter((u) => u.teamId === team.teamId);
+            const allTeamUsers = users.filter((u) => u.teamId === team.teamId);
+            const teamMembers = isOverall
+              ? allTeamUsers
+              : allTeamUsers.filter((u) => {
+                  const stat = memberWeeklyStats.find((m) => m.user.id === u.id)?.stat;
+                  return !stat?.isExcused;
+                });
 
             return (
               <div key={team.teamId} className="p-4 sm:p-5 space-y-3">
@@ -1305,7 +1296,6 @@ export default function TeamLeaderboard({
                       const actualKm = userStat?.actualKm || 0;
                       const daysRun = userStat?.totalDaysRun || 0;
                       const isTargetMet = userStat?.isCompleted || false;
-                      const isExcused = userStat?.isExcused || false;
 
                       return (
                         <div
@@ -1329,7 +1319,7 @@ export default function TeamLeaderboard({
                                 )}
                               </div>
                               <div className="text-[10px] text-slate-400">
-                                {isExcused ? '🌴 Nghỉ phép' : `${daysRun} buổi • Pace ${formatPace(userStat?.averagePaceSeconds || 0)}`}
+                                {daysRun} buổi • Pace {formatPace(userStat?.averagePaceSeconds || 0)}
                               </div>
                             </div>
                           </div>
@@ -1390,7 +1380,7 @@ export default function TeamLeaderboard({
                 Tỷ lệ hoàn thành
               </span>
               <span className="text-base font-black text-emerald-400">
-                {completedMembersCount} / {users.length} VĐV
+                {completedMembersCount} / {publishedMembersCount} VĐV
               </span>
             </div>
           </div>
