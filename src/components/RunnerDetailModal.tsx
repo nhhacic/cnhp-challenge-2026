@@ -473,6 +473,17 @@ Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới n
                                 (Đã trừ {act.lagKmDeducted}km lag)
                               </span>
                             )}
+                            {act.stravaActivityId && (
+                              <a
+                                href={`https://www.strava.com/activities/${act.stravaActivityId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1 text-[#fc5200] hover:underline font-bold"
+                                title="Xem bài chạy trên Strava"
+                              >
+                                <span>Strava ↗</span>
+                              </a>
+                            )}
                           </div>
                         </div>
 
@@ -549,6 +560,19 @@ Cảm ơn bạn đã đồng hành cùng anh em CNHP! Chúc bạn tuần mới n
                 })}
               </div>
             )}
+
+            {/* Powered by Strava Attribution */}
+            <div className="pt-2 pb-1 flex items-center justify-center">
+              <a
+                href="https://www.strava.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1.5 text-xs text-slate-400 hover:text-[#fc5200] transition"
+              >
+                <span>Powered by</span>
+                <span className="font-black text-[#fc5200] tracking-wide">STRAVA</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

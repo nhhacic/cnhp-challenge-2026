@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import CountdownBanner from '@/components/CountdownBanner';
 import TeamLeaderboard from '@/components/TeamLeaderboard';
@@ -654,11 +655,40 @@ export default function HomePage() {
       )}
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+      <footer className="mt-auto border-t border-slate-200 dark:border-slate-800/80 py-8 px-4 text-center text-xs text-slate-500 dark:text-slate-400 space-y-3">
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-semibold">
+          <Link href="/privacy" className="text-slate-600 dark:text-slate-300 hover:text-[#fc5200] dark:hover:text-[#fc5200] underline transition">
+            Chính Sách Bảo Mật (Privacy Policy)
+          </Link>
+          <span className="text-slate-300 dark:text-slate-700">•</span>
+          <Link href="/terms" className="text-slate-600 dark:text-slate-300 hover:text-[#fc5200] dark:hover:text-[#fc5200] underline transition">
+            Điều Khoản Sử Dụng (Terms of Service)
+          </Link>
+        </div>
+
+        {/* Compatible with Strava / Powered by Strava */}
+        <div className="flex items-center justify-center pt-1 pb-1">
+          <a
+            href="https://www.strava.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-[#fc5200] transition group"
+            title="Dữ liệu bài tập được đồng bộ qua Strava API"
+          >
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Compatible with</span>
+            <div className="flex items-center space-x-1.5 font-black text-xs text-[#fc5200]">
+              <svg className="w-3.5 h-3.5 fill-[#fc5200]" viewBox="0 0 24 24">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
+              </svg>
+              <span>STRAVA</span>
+            </div>
+          </a>
+        </div>
+
         <p>
-          Challenge CNHP Thu Đông 2026 • 12/10/2026 đến 06/12/2026 • Câu lạc bộ CNHP Running Club
+          Challenge CNHP Thu Đông 2026 • 12/10/2026 đến 06/12/2026 • Câu lạc bộ CNHP Running Club (Hải Phòng)
         </p>
-        <p className="mt-1 text-[11px] text-slate-400">
+        <p className="text-[11px] text-slate-400">
           Tự động hóa 100% thể lệ: Cap 40km đồng đội • Pace chậm hơn thắng khi hòa km • Nợ chạy bù tuần kế tiếp
         </p>
       </footer>

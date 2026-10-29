@@ -108,12 +108,14 @@ export default function Header({
             ) : (
               <button
                 onClick={handleConnectStrava}
-                className="flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-semibold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md transition-all whitespace-nowrap"
+                className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-white bg-[#fc5200] hover:bg-[#e04900] active:scale-95 rounded-xl shadow-md transition-all whitespace-nowrap"
+                title="Connect with Strava"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7.01 13.828h4.172" />
                 </svg>
-                <span className="hidden sm:inline">Strava</span>
+                <span className="hidden sm:inline">Connect with Strava</span>
+                <span className="sm:hidden">Connect</span>
               </button>
             )}
 
