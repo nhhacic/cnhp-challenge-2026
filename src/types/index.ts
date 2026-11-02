@@ -16,6 +16,7 @@ export interface User {
   teamId: string;
   isCaptain: boolean;
   isPaidFee: boolean;
+  paidPenaltyWeeks?: number[]; // Danh sách các tuần đã nộp tiền phạt (ví dụ: [1, 2])
   phone?: string;
   status: 'ACTIVE' | 'DROPPED';
 }
@@ -83,6 +84,7 @@ export interface UserWeeklyStat {
   isExcused?: boolean; // Được duyệt tạm nghỉ tuần này vì lý do bất khả kháng
   leaveReason?: string;
   isClubOnly?: boolean; // Thành viên thuộc đội phong trào CLB (ngoài Challenge)
+  isPenaltyPaid?: boolean; // Đã nộp tiền phạt cho tuần này
 }
 
 export interface LeaveRequest {

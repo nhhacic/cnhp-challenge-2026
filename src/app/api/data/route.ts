@@ -88,6 +88,7 @@ export async function GET() {
           leaveReason,
           isClubOnly
         );
+        stat.isPenaltyPaid = Boolean((user.paidPenaltyWeeks || []).includes(week.weekNumber));
         userStats.push(stat);
         if (isEvaluated) {
           allUserWeeklyStats.push(stat);

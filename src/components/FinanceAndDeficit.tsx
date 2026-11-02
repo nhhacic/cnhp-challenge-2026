@@ -67,13 +67,13 @@ export default function FinanceAndDeficit({
     return false;
   });
 
-  // Kiểm tra quyền Thủ quỹ Long Trịnh (Strava ID: 138319814)
+  // Kiểm tra quyền Thủ quỹ Long Trịnh (Strava ID: 138319814) hoặc Quản trị viên
   const isConnectedAsTreasurer =
     connectedUser?.stravaId === TREASURER_STRAVA_ID ||
     connectedUser?.id === TREASURER_USER_ID ||
     users.find((u) => u.id === connectedUser?.id)?.stravaId === TREASURER_STRAVA_ID;
 
-  const isTreasurer = isConnectedAsTreasurer || isPinAuthenticated;
+  const isTreasurer = isConnectedAsTreasurer || isPinAuthenticated || isAdmin;
   const exportCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPaymentUser, setSelectedPaymentUser] = useState<User | null>(null);
@@ -201,6 +201,7 @@ export default function FinanceAndDeficit({
           callerStravaId: connectedUser?.stravaId,
           callerUserId: connectedUser?.id,
           treasurerPin: isPinAuthenticated ? '138319814' : undefined,
+          isAdmin,
         }),
       });
       const resJson = await res.json();
@@ -219,6 +220,97 @@ export default function FinanceAndDeficit({
     } catch (err) {
       console.error(err);
       setFeeStatusMsg({ type: 'error', text: 'Lỗi kết nối khi cập nhật trạng thái phí' });
+    } finally {
+      setUpdatingUserId(null);
+      setTimeout(() => setFeeStatusMsg(null), 4000);
+    }
+  };
+
+  // Xử lý bật/tắt trạng thái nộp tiền phạt tuần (Thủ quỹ / Admin)
+  const handleTogglePaidPenalty = async (user: User, weekNumber: number, targetPaidStatus: boolean) => {
+    if (!isTreasurer) {
+      setShowTreasurerAuthModal(true);
+      return;
+    }
+
+    setUpdatingUserId(user.id);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_paid_penalty',
+          userId: user.id,
+          weekNumber,
+          isPaidPenalty: targetPaidStatus,
+          callerStravaId: connectedUser?.stravaId,
+          callerUserId: connectedUser?.id,
+          treasurerPin: isPinAuthenticated ? '138319814' : undefined,
+          isAdmin,
+        }),
+      });
+      const resJson = await res.json();
+      if (res.ok) {
+        setFeeStatusMsg({
+          type: 'success',
+          text: `Đã cập nhật: ${user.name} ${targetPaidStatus ? `đã nộp phạt Tuần ${weekNumber} 🎉` : `chưa nộp phạt Tuần ${weekNumber}`}!`,
+        });
+        onRefreshData?.();
+      } else {
+        setFeeStatusMsg({
+          type: 'error',
+          text: resJson.error || 'Không thể cập nhật trạng thái nộp phạt',
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeeStatusMsg({ type: 'error', text: 'Lỗi kết nối khi cập nhật trạng thái nộp phạt' });
+    } finally {
+      setUpdatingUserId(null);
+      setTimeout(() => setFeeStatusMsg(null), 4000);
+    }
+  };
+
+  // Xử lý xác nhận đã nộp toàn bộ các khoản nợ của tuần (Thủ quỹ / Admin)
+  const handleMarkAllSettled = async (user: User, weekNumber: number) => {
+    if (!isTreasurer) {
+      setShowTreasurerAuthModal(true);
+      return;
+    }
+
+    setUpdatingUserId(user.id);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'settle_user_debts',
+          userId: user.id,
+          weekNumber,
+          settleFee: true,
+          settlePenalty: true,
+          callerStravaId: connectedUser?.stravaId,
+          callerUserId: connectedUser?.id,
+          treasurerPin: isPinAuthenticated ? '138319814' : undefined,
+          isAdmin,
+        }),
+      });
+      const resJson = await res.json();
+      if (res.ok) {
+        setFeeStatusMsg({
+          type: 'success',
+          text: `Đã xác nhận: ${user.name} đã nộp đầy đủ các khoản! Thành viên này sẽ không bị nhắc nợ nữa 🎉`,
+        });
+        onRefreshData?.();
+      } else {
+        setFeeStatusMsg({
+          type: 'error',
+          text: resJson.error || 'Không thể cập nhật trạng thái',
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeeStatusMsg({ type: 'error', text: 'Lỗi kết nối khi xác nhận đã nộp' });
     } finally {
       setUpdatingUserId(null);
       setTimeout(() => setFeeStatusMsg(null), 4000);
@@ -367,6 +459,8 @@ export default function FinanceAndDeficit({
         userWeeklyStatsMap={userWeeklyStatsMap}
         isTreasurer={isTreasurer}
         onTogglePaidFee={handleTogglePaidFee}
+        onTogglePaidPenalty={handleTogglePaidPenalty}
+        onMarkAllSettled={handleMarkAllSettled}
         onOpenPaymentQr={handleOpenPaymentQrFromHub}
         updatingUserId={updatingUserId}
         onOpenTreasurerAuth={() => setShowTreasurerAuthModal(true)}

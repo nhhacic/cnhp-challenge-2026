@@ -103,7 +103,11 @@ export default function RunnerDetailModal({
 
   const isClubOnlyMember = Boolean(team?.isClubOnly || user.teamId === 'team-4');
   const isUnpaidFee = !isClubOnlyMember && !user.isPaidFee;
-  const currentWeekPenalty = currentWeekStats?.totalPenaltyAmount || 0;
+  const isCurrentWeekPenaltyPaid = Boolean(
+    currentWeekStats?.isPenaltyPaid ||
+    (user.paidPenaltyWeeks && user.paidPenaltyWeeks.includes(selectedWeek?.weekNumber || 1))
+  );
+  const currentWeekPenalty = isCurrentWeekPenaltyPaid ? 0 : (currentWeekStats?.totalPenaltyAmount || 0);
   const totalDebt = (isUnpaidFee ? 200000 : 0) + currentWeekPenalty;
 
   const paymentSyntax = isUnpaidFee && currentWeekPenalty > 0

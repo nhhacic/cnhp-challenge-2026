@@ -20,8 +20,12 @@ import {
   ChevronDown,
   Sparkles,
   Lock,
+  Unlock,
   RefreshCw,
-  X
+  X,
+  CheckSquare,
+  Square,
+  RotateCcw
 } from 'lucide-react';
 
 interface DebtReminderHubProps {
@@ -32,6 +36,8 @@ interface DebtReminderHubProps {
   userWeeklyStatsMap: Record<string, UserWeeklyStat[]>;
   isTreasurer?: boolean;
   onTogglePaidFee?: (user: User, targetPaidStatus: boolean) => Promise<void> | void;
+  onTogglePaidPenalty?: (user: User, weekNumber: number, targetPaidStatus: boolean) => Promise<void> | void;
+  onMarkAllSettled?: (user: User, weekNumber: number) => Promise<void> | void;
   onOpenPaymentQr?: (user: User, amount: number, type: 'PENALTY' | 'ENTRY_FEE' | 'TOTAL') => void;
   updatingUserId?: string | null;
   onOpenTreasurerAuth?: () => void;
@@ -42,6 +48,8 @@ export interface UserDebtItem {
   team: Team | undefined;
   isUnpaidFee: boolean;
   feeAmount: number;
+  rawWeekPenalty: number;
+  isPenaltyPaid: boolean;
   currentWeekPenalty: number;
   missingDays: number;
   penaltyDaysAmount: number;
@@ -49,6 +57,7 @@ export interface UserDebtItem {
   penaltyKmAmount: number;
   cumulativePenalty: number;
   totalDebtThisWeek: number;
+  isSettled: boolean;
   penaltyDetailsText: string;
 }
 
@@ -60,6 +69,8 @@ export default function DebtReminderHub({
   userWeeklyStatsMap,
   isTreasurer = false,
   onTogglePaidFee,
+  onTogglePaidPenalty,
+  onMarkAllSettled,
   onOpenPaymentQr,
   updatingUserId,
   onOpenTreasurerAuth,
@@ -68,7 +79,7 @@ export default function DebtReminderHub({
   const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   // Bộ lọc & Tìm kiếm
-  const [filterType, setFilterType] = useState<'ALL' | 'FEE_ONLY' | 'PENALTY_ONLY' | 'BOTH'>('ALL');
+  const [filterType, setFilterType] = useState<'ALL' | 'FEE_ONLY' | 'PENALTY_ONLY' | 'BOTH' | 'PAID'>('ALL');
   const [selectedTeamId, setSelectedTeamId] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -76,7 +87,7 @@ export default function DebtReminderHub({
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   // Tính toán dữ liệu công nợ cho toàn bộ thành viên
@@ -90,14 +101,26 @@ export default function DebtReminderHub({
       const stats = userWeeklyStatsMap[user.id] || [];
       const currentStat = stats.find((s) => s.weekNumber === currentWeekNumber);
 
-      const currentWeekPenalty = currentStat?.totalPenaltyAmount || 0;
+      const rawWeekPenalty = currentStat?.totalPenaltyAmount || 0;
+      const isPenaltyPaid = Boolean(
+        currentStat?.isPenaltyPaid ||
+        (user.paidPenaltyWeeks && user.paidPenaltyWeeks.includes(currentWeekNumber))
+      );
+      // Tiền phạt thực tế còn nợ (nếu đã nộp phạt thì = 0)
+      const currentWeekPenalty = isPenaltyPaid ? 0 : rawWeekPenalty;
+
       const missingDays = currentStat?.missingDays || 0;
       const penaltyDaysAmount = currentStat?.penaltyDaysAmount || 0;
       const deficitKm = currentStat?.deficitKm || 0;
       const penaltyKmAmount = currentStat?.penaltyKmAmount || 0;
-      const cumulativePenalty = stats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
+      
+      const cumulativePenalty = stats.reduce((sum, s) => {
+        const isPaid = s.isPenaltyPaid || (user.paidPenaltyWeeks && user.paidPenaltyWeeks.includes(s.weekNumber));
+        return sum + (isPaid ? 0 : s.totalPenaltyAmount);
+      }, 0);
 
       const totalDebtThisWeek = feeAmount + currentWeekPenalty;
+      const isSettled = !isUnpaidFee && (rawWeekPenalty === 0 || isPenaltyPaid);
 
       const penaltyDetailsParts: string[] = [];
       if (missingDays > 0) penaltyDetailsParts.push(`Thiếu ${missingDays} buổi (${formatCurrency(penaltyDaysAmount)})`);
@@ -109,6 +132,8 @@ export default function DebtReminderHub({
         team,
         isUnpaidFee,
         feeAmount,
+        rawWeekPenalty,
+        isPenaltyPaid,
         currentWeekPenalty,
         missingDays,
         penaltyDaysAmount,
@@ -116,14 +141,20 @@ export default function DebtReminderHub({
         penaltyKmAmount,
         cumulativePenalty,
         totalDebtThisWeek,
+        isSettled,
         penaltyDetailsText,
       };
     });
   }, [users, teamMap, userWeeklyStatsMap, currentWeekNumber]);
 
-  // Danh sách những người có nợ
+  // Danh sách những người có nợ còn phải nộp (chưa hoàn thành)
   const debtors = useMemo(() => {
     return allDebts.filter((d) => d.totalDebtThisWeek > 0);
+  }, [allDebts]);
+
+  // Danh sách những người đã nộp xong / không nợ
+  const settledMembers = useMemo(() => {
+    return allDebts.filter((d) => d.isSettled);
   }, [allDebts]);
 
   const unpaidFeeDebtors = useMemo(() => {
@@ -138,15 +169,18 @@ export default function DebtReminderHub({
     return allDebts.filter((d) => d.isUnpaidFee && d.currentWeekPenalty > 0);
   }, [allDebts]);
 
-  // Tổng hợp tiền
+  // Tổng hợp tiền cần thu
   const totalUnpaidFeeAmount = unpaidFeeDebtors.length * 200000;
   const totalCurrentWeekPenaltyAmount = penaltyDebtors.reduce((sum, d) => sum + d.currentWeekPenalty, 0);
   const grandTotalDebtAmount = totalUnpaidFeeAmount + totalCurrentWeekPenaltyAmount;
 
   // Lọc theo điều kiện người dùng chọn
-  const filteredDebtors = useMemo(() => {
-    return debtors.filter((item) => {
-      // Lọc theo loại nợ
+  const filteredList = useMemo(() => {
+    const sourceList = filterType === 'PAID' ? settledMembers : allDebts;
+
+    return sourceList.filter((item) => {
+      // Khi chọn xem các loại nợ (chỉ lấy người có nợ)
+      if (filterType === 'ALL' && item.totalDebtThisWeek <= 0) return false;
       if (filterType === 'FEE_ONLY' && (!item.isUnpaidFee || item.currentWeekPenalty > 0)) return false;
       if (filterType === 'PENALTY_ONLY' && (item.isUnpaidFee || item.currentWeekPenalty === 0)) return false;
       if (filterType === 'BOTH' && (!item.isUnpaidFee || item.currentWeekPenalty === 0)) return false;
@@ -162,7 +196,7 @@ export default function DebtReminderHub({
 
       return true;
     });
-  }, [debtors, filterType, selectedTeamId, searchQuery]);
+  }, [allDebts, settledMembers, filterType, selectedTeamId, searchQuery]);
 
   // 1. Sao chép tin nhắn nhắc nợ cá nhân
   const handleCopyPersonalReminder = (item: UserDebtItem) => {
@@ -210,10 +244,10 @@ Cảm ơn bạn đã luôn đồng hành cùng anh em CNHP! Chúc bạn tuần m
       ? unpaidFeeDebtors.map((d, idx) => `  ${idx + 1}. @${d.user.name} (${d.team?.name.split('-')[0].trim() || 'Team'}): 200.000đ`).join('\n')
       : '  ✅ 100% VĐV đã hoàn thành nộp phí tham dự!';
 
-    // Danh sách nộp phạt tuần
+    // Danh sách nộp phạt tuần (chỉ những người chưa nộp phạt)
     const penaltyLines = penaltyDebtors.length > 0
       ? penaltyDebtors.map((d, idx) => `  ${idx + 1}. @${d.user.name} (${d.team?.name.split('-')[0].trim() || 'Team'}): ${formatCurrency(d.currentWeekPenalty)} (${d.penaltyDetailsText})`).join('\n')
-      : '  🎉 Tuần này không có thành viên nào bị phạt!';
+      : '  🎉 Toàn bộ thành viên đã nộp phạt hoặc tuần này không ai bị phạt!';
 
     const broadcastText = `📢 [CNHP CHALLENGE THU ĐÔNG 2026] - BẢN TIN NHẮC NỢ QUỸ & NỘP PHẠT TUẦN ${currentWeekNumber}
 ⏰ Hạn chót hoàn thành: Trước 12h00 Thứ Ba
@@ -248,7 +282,7 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 sm:p-7 space-y-6">
-      {/* Toast thông báo sao chép */}
+      {/* Toast thông báo sao chép & cập nhật */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-2 border border-slate-700 dark:border-slate-300">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600 flex-shrink-0" />
@@ -272,12 +306,12 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
               </span>
               {debtors.length > 0 && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 animate-pulse">
-                  {debtors.length} VĐV cần hoàn thành
+                  {debtors.length} VĐV cần nhắc nợ
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-              Tự động tổng hợp phí tham dự (200k) và tiền phạt tuần theo thể lệ • Xuất tin nhắn mẫu Zalo cá nhân & nhóm 1-chạm
+              Tự động tổng hợp phí tham dự (200k) và tiền phạt tuần theo thể lệ • Thủ quỹ có quyền tích &quot;Đã nộp&quot; để gỡ nhắc nợ
             </p>
           </div>
         </div>
@@ -286,7 +320,7 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopyBroadcastZalo}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-600 via-rose-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white text-xs sm:text-sm font-black shadow-lg shadow-rose-500/25 active:scale-95 transition-all"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-600 via-rose-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white text-xs sm:text-sm font-black shadow-lg shadow-rose-500/25 active:scale-95 transition-all cursor-pointer"
             title="Sao chép toàn bộ danh sách nợ để gửi vào Group Zalo CNHP"
           >
             {copiedType === 'broadcast' ? (
@@ -304,12 +338,49 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
         </div>
       </div>
 
+      {/* Thanh Trạng Thái Quyền Thủ Quỹ (Treasurer Status Banner) */}
+      <div className={`p-3 sm:p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+        isTreasurer
+          ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+          : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+      }`}>
+        <div className="flex items-center gap-2.5">
+          <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-white shrink-0 ${
+            isTreasurer ? 'bg-emerald-600' : 'bg-amber-500'
+          }`}>
+            {isTreasurer ? <Check className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+          </div>
+          <div>
+            <span className="font-extrabold block">
+              {isTreasurer
+                ? '👑 Quyền Thủ quỹ đang BẬT: Bạn có thể trực tiếp tick ô "Đã nộp" để xác nhận và ngưng nhắc nợ thành viên.'
+                : '🔒 Chế độ xem công nợ (Chỉ Thủ quỹ Long Trịnh mới có quyền tick "Đã nộp" để gỡ nhắc nợ).'}
+            </span>
+            <span className="text-[11px] opacity-80">
+              {isTreasurer
+                ? 'Bấm nút "Tích Đã Nộp" hoặc tick vào từng khoản phí/phạt để xác nhận thanh toán.'
+                : 'Bạn là Thủ quỹ Long Trịnh? Hãy mở khóa quyền để cập nhật danh sách thu tiền.'}
+            </span>
+          </div>
+        </div>
+
+        {!isTreasurer && onOpenTreasurerAuth && (
+          <button
+            onClick={onOpenTreasurerAuth}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition active:scale-95 shrink-0 cursor-pointer"
+          >
+            <Unlock className="w-3.5 h-3.5" />
+            <span>Mở Khóa Quyền Thủ Quỹ</span>
+          </button>
+        )}
+      </div>
+
       {/* 4 Thẻ Thống Kê Tổng Quan Công Nợ (Debt Overview Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Tổng số người cần nhắc */}
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold block mb-1">
-            Tổng Thành Viên Cần Nhắc
+            VĐV Cần Nhắc Nợ
           </span>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400">
@@ -318,7 +389,7 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
             <span className="text-xs text-slate-400">/ {users.length} VĐV</span>
           </div>
           <span className="text-[10px] text-slate-500 block mt-1">
-            {bothDebtors.length > 0 ? `${bothDebtors.length} người nợ cả hai khoản` : 'Theo dõi thời gian thực'}
+            {bothDebtors.length > 0 ? `${bothDebtors.length} người nợ cả hai khoản` : 'Được cập nhật tự động'}
           </span>
         </div>
 
@@ -348,7 +419,7 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
             </span>
           </div>
           <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold block mt-1">
-            {penaltyDebtors.length} VĐV vi phạm chỉ tiêu tuần
+            {penaltyDebtors.length} VĐV chưa nộp phạt tuần
           </span>
         </div>
 
@@ -373,17 +444,17 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl overflow-x-auto scrollbar-none">
           <button
             onClick={() => setFilterType('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               filterType === 'ALL'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
-            Tất cả nợ ({debtors.length})
+            Cần nhắc nợ ({debtors.length})
           </button>
           <button
             onClick={() => setFilterType('FEE_ONLY')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               filterType === 'FEE_ONLY'
                 ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-blue-600'
@@ -393,7 +464,7 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
           </button>
           <button
             onClick={() => setFilterType('PENALTY_ONLY')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               filterType === 'PENALTY_ONLY'
                 ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-orange-600'
@@ -403,13 +474,23 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
           </button>
           <button
             onClick={() => setFilterType('BOTH')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               filterType === 'BOTH'
                 ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-rose-600'
             }`}
           >
             Nợ cả hai ({bothDebtors.length})
+          </button>
+          <button
+            onClick={() => setFilterType('PAID')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              filterType === 'PAID'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100/50'
+            }`}
+          >
+            ✅ Đã nộp xong ({settledMembers.length})
           </button>
         </div>
 
@@ -445,29 +526,37 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
         </div>
       </div>
 
-      {/* Danh Sách Thành Viên Cần Nhắc Nợ */}
-      {filteredDebtors.length === 0 ? (
+      {/* Danh Sách Thành Viên */}
+      {filteredList.length === 0 ? (
         <div className="text-center py-10 px-4 bg-emerald-50/70 dark:bg-emerald-950/20 rounded-3xl border border-emerald-200 dark:border-emerald-900/40 space-y-2">
           <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
           <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
-            Tuyệt vời! Không có thành viên nào cần nhắc nợ theo bộ lọc này 🎉
+            {filterType === 'PAID'
+              ? 'Chưa có thành viên nào hoàn thành theo bộ lọc này'
+              : 'Tuyệt vời! Không có thành viên nào cần nhắc nợ theo bộ lọc này 🎉'}
           </h4>
           <p className="text-xs text-emerald-700 dark:text-emerald-400 max-w-md mx-auto">
-            Tất cả các thành viên đã hoàn thành nghĩa vụ đóng quỹ tham dự 200k và không phát sinh tiền phạt vi phạm thể lệ.
+            {filterType === 'PAID'
+              ? 'Danh sách sẽ hiển thị các thành viên đã được Thủ quỹ xác nhận nộp phí và phạt.'
+              : 'Tất cả các thành viên đã hoàn thành nghĩa vụ đóng quỹ tham dự 200k và nộp phạt theo thể lệ.'}
           </p>
         </div>
       ) : (
         <>
           {/* Mobile View: Cards */}
           <div className="lg:hidden space-y-3">
-            {filteredDebtors.map((item) => {
+            {filteredList.map((item) => {
               const isSelectedCopied = copiedType === `user-${item.user.id}`;
               const isUpdating = updatingUserId === item.user.id;
 
               return (
                 <div
                   key={item.user.id}
-                  className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3 transition-all hover:shadow-md"
+                  className={`p-4 rounded-2xl border space-y-3 transition-all hover:shadow-md ${
+                    item.isSettled
+                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                      : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -495,94 +584,177 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 block font-medium">Tổng cần nộp</span>
-                      <span className="text-base font-black text-rose-600 dark:text-rose-400">
-                        {formatCurrency(item.totalDebtThisWeek)}
+                      <span className="text-[10px] text-slate-400 block font-medium">
+                        {item.totalDebtThisWeek > 0 ? 'Còn cần nộp' : 'Trạng thái'}
                       </span>
+                      {item.totalDebtThisWeek > 0 ? (
+                        <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                          {formatCurrency(item.totalDebtThisWeek)}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Đã nộp đủ
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Chi tiết từng khoản nợ */}
-                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 text-xs space-y-1.5">
+                  {/* Chi tiết từng khoản nợ & Nút tick Thủ quỹ */}
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 text-xs space-y-2">
                     {/* Khoản phí 200k */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
                         <CreditCard className="w-3.5 h-3.5 text-blue-500" />
                         <span>Phí tham dự:</span>
                       </span>
+
                       {item.isUnpaidFee ? (
-                        <span className="font-bold text-rose-600 dark:text-rose-400">
-                          Chưa nộp 200.000đ ⏳
-                        </span>
+                        <button
+                          onClick={() => {
+                            if (!isTreasurer) {
+                              onOpenTreasurerAuth?.();
+                              return;
+                            }
+                            onTogglePaidFee?.(item.user, true);
+                          }}
+                          disabled={isUpdating}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 hover:bg-emerald-50 text-rose-700 hover:text-emerald-700 border border-rose-200 hover:border-emerald-300 transition-all cursor-pointer"
+                          title={isTreasurer ? 'Thủ quỹ bấm để tick "Đã nộp phí 200k"' : 'Mở khóa quyền Thủ quỹ'}
+                        >
+                          <Square className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Chưa nộp 200k (Bấm tick Đã nộp)</span>
+                        </button>
                       ) : (
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                          Đã nộp ✓
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                            <CheckSquare className="w-3.5 h-3.5" />
+                            <span>Đã nộp 200k</span>
+                          </span>
+                          {isTreasurer && onTogglePaidFee && (
+                            <button
+                              onClick={() => onTogglePaidFee(item.user, false)}
+                              disabled={isUpdating}
+                              className="text-[10px] text-slate-400 hover:text-rose-600 underline"
+                              title="Bỏ tick (quay lại chưa nộp)"
+                            >
+                              Hủy
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
 
                     {/* Khoản phạt tuần */}
-                    {item.currentWeekPenalty > 0 && (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
-                        <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                          <span>Phạt Tuần {currentWeekNumber}:</span>
-                        </span>
-                        <div className="text-right">
-                          <span className="font-bold text-orange-600 dark:text-orange-400">
-                            {formatCurrency(item.currentWeekPenalty)}
+                    {item.rawWeekPenalty > 0 && (
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                        <div className="min-w-0">
+                          <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                            <span>Phạt Tuần {currentWeekNumber}:</span>
                           </span>
-                          <span className="text-[10px] text-slate-400 block">
-                            ({item.penaltyDetailsText})
+                          <span className="text-[10px] text-slate-400 block truncate">
+                            {formatCurrency(item.rawWeekPenalty)} ({item.penaltyDetailsText})
                           </span>
                         </div>
+
+                        {!item.isPenaltyPaid ? (
+                          <button
+                            onClick={() => {
+                              if (!isTreasurer) {
+                                onOpenTreasurerAuth?.();
+                                return;
+                              }
+                              onTogglePaidPenalty?.(item.user, currentWeekNumber, true);
+                            }}
+                            disabled={isUpdating}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-emerald-50 text-amber-800 hover:text-emerald-700 border border-amber-200 hover:border-emerald-300 transition-all cursor-pointer"
+                            title={isTreasurer ? 'Thủ quỹ bấm để tick "Đã nộp phạt"' : 'Mở khóa quyền Thủ quỹ'}
+                          >
+                            <Square className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Chưa nộp phạt (Bấm tick)</span>
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                              <CheckSquare className="w-3.5 h-3.5" />
+                              <span>Đã nộp phạt ✓</span>
+                            </span>
+                            {isTreasurer && onTogglePaidPenalty && (
+                              <button
+                                onClick={() => onTogglePaidPenalty(item.user, currentWeekNumber, false)}
+                                disabled={isUpdating}
+                                className="text-[10px] text-slate-400 hover:text-rose-600 underline"
+                                title="Bỏ tick nộp phạt"
+                              >
+                                Hủy
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Các nút hành động 1-chạm */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => handleCopyPersonalReminder(item)}
-                      className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-                        isSelectedCopied
-                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
-                      }`}
-                      title="Sao chép lời nhắc nợ gửi riêng cho VĐV này qua Zalo"
-                    >
-                      {isSelectedCopied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Đã Chép Lời Nhắc</span>
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Nhắc Zalo</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => onOpenPaymentQr?.(item.user, item.totalDebtThisWeek, item.isUnpaidFee && item.currentWeekPenalty === 0 ? 'ENTRY_FEE' : 'TOTAL')}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
-                      title="Mở mã QR nộp tiền với số tiền và cú pháp chính xác"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>Mở QR Nộp</span>
-                    </button>
-
-                    {/* Nút xác nhận dành riêng cho Thủ quỹ */}
-                    {isTreasurer && item.isUnpaidFee && onTogglePaidFee && (
+                  {/* Các nút hành động */}
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    {/* NÚT THỦ QUỸ: TÍCH ĐÃ NỘP TOÀN BỘ */}
+                    {item.totalDebtThisWeek > 0 && (
                       <button
-                        onClick={() => onTogglePaidFee(item.user, true)}
+                        onClick={() => {
+                          if (!isTreasurer) {
+                            onOpenTreasurerAuth?.();
+                            return;
+                          }
+                          onMarkAllSettled?.(item.user, currentWeekNumber);
+                          showToast(`Đã xác nhận ${item.user.name} đã nộp đủ! Thành viên này sẽ không bị nhắc nợ nữa 🎉`);
+                        }}
                         disabled={isUpdating}
-                        className="inline-flex items-center justify-center p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all active:scale-95"
-                        title="Thủ quỹ xác nhận đã thu phí 200k"
+                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-600/25 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                        title="Thủ quỹ xác nhận thành viên đã nộp đủ toàn bộ các khoản nợ của tuần"
                       >
-                        {isUpdating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {isUpdating ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )}
+                        <span>✓ TÍCH ĐÃ NỘP (NGƯNG NHẮC NỢ)</span>
                       </button>
+                    )}
+
+                    {item.totalDebtThisWeek > 0 && (
+                      <>
+                        <button
+                          onClick={() => handleCopyPersonalReminder(item)}
+                          className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 border cursor-pointer ${
+                            isSelectedCopied
+                              ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
+                          }`}
+                          title="Sao chép lời nhắc nợ gửi riêng cho VĐV này qua Zalo"
+                        >
+                          {isSelectedCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Đã Chép Lời Nhắc</span>
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                              <span>Nhắc Zalo</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => onOpenPaymentQr?.(item.user, item.totalDebtThisWeek, item.isUnpaidFee && item.currentWeekPenalty === 0 ? 'ENTRY_FEE' : 'TOTAL')}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer"
+                          title="Mở mã QR nộp tiền với số tiền và cú pháp chính xác"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                          <span>Mở QR Nộp</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -600,18 +772,22 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
                   <th className="py-3 px-3 text-center">Phí Tham Dự (200k)</th>
                   <th className="py-3 px-3">Phạt Tuần {currentWeekNumber}</th>
                   <th className="py-3 px-3 text-right">Tổng Cần Nộp</th>
-                  <th className="py-3 px-4 text-center">Hành Động Nhắc & Nộp</th>
+                  <th className="py-3 px-4 text-center">Xác Nhận & Hành Động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredDebtors.map((item) => {
+                {filteredList.map((item) => {
                   const isSelectedCopied = copiedType === `user-${item.user.id}`;
                   const isUpdating = updatingUserId === item.user.id;
 
                   return (
                     <tr
                       key={item.user.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      className={`transition-colors ${
+                        item.isSettled
+                          ? 'bg-emerald-50/20 dark:bg-emerald-950/10 hover:bg-emerald-50/40'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
                     >
                       {/* VĐV */}
                       <td className="py-3.5 px-4">
@@ -657,23 +833,76 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
                       {/* Phí 200k */}
                       <td className="py-3.5 px-3 text-center">
                         {item.isUnpaidFee ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                            ⏳ Chưa Nộp 200k
-                          </span>
+                          <button
+                            onClick={() => {
+                              if (!isTreasurer) {
+                                onOpenTreasurerAuth?.();
+                                return;
+                              }
+                              onTogglePaidFee?.(item.user, true);
+                            }}
+                            disabled={isUpdating}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-rose-50 hover:bg-emerald-50 text-rose-700 hover:text-emerald-700 border border-rose-200 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs"
+                            title={isTreasurer ? 'Thủ quỹ bấm để tick "Đã nộp phí 200k"' : 'Mở khóa quyền Thủ quỹ'}
+                          >
+                            <Square className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Chưa nộp 200k</span>
+                          </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Đã Nộp
-                          </span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            <CheckSquare className="w-3.5 h-3.5" />
+                            <span>Đã Nộp</span>
+                            {isTreasurer && onTogglePaidFee && (
+                              <button
+                                onClick={() => onTogglePaidFee(item.user, false)}
+                                disabled={isUpdating}
+                                className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
+                                title="Bỏ tick nộp phí"
+                              >
+                                (Hủy)
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
 
                       {/* Phạt tuần */}
                       <td className="py-3.5 px-3">
-                        {item.currentWeekPenalty > 0 ? (
-                          <div className="space-y-0.5 text-xs">
-                            <div className="font-extrabold text-orange-600 dark:text-orange-400">
-                              {formatCurrency(item.currentWeekPenalty)}
+                        {item.rawWeekPenalty > 0 ? (
+                          <div className="space-y-1 text-xs">
+                            <div className="flex items-center gap-2">
+                              {!item.isPenaltyPaid ? (
+                                <button
+                                  onClick={() => {
+                                    if (!isTreasurer) {
+                                      onOpenTreasurerAuth?.();
+                                      return;
+                                    }
+                                    onTogglePaidPenalty?.(item.user, currentWeekNumber, true);
+                                  }}
+                                  disabled={isUpdating}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-emerald-50 text-amber-800 hover:text-emerald-700 border border-amber-200 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs"
+                                  title={isTreasurer ? 'Thủ quỹ bấm để tick "Đã nộp phạt"' : 'Mở khóa quyền Thủ quỹ'}
+                                >
+                                  <Square className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>{formatCurrency(item.rawWeekPenalty)} (Tick nộp)</span>
+                                </button>
+                              ) : (
+                                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                  <CheckSquare className="w-3 h-3" />
+                                  <span>Đã nộp {formatCurrency(item.rawWeekPenalty)}</span>
+                                  {isTreasurer && onTogglePaidPenalty && (
+                                    <button
+                                      onClick={() => onTogglePaidPenalty(item.user, currentWeekNumber, false)}
+                                      disabled={isUpdating}
+                                      className="ml-1 text-[10px] text-slate-400 hover:text-rose-600 underline cursor-pointer"
+                                      title="Bỏ tick nộp phạt"
+                                    >
+                                      (Hủy)
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="text-[11px] text-slate-500 dark:text-slate-400">
                               {item.penaltyDetailsText}
@@ -688,57 +917,83 @@ Anh em vui lòng hoàn thành sớm để Thủ quỹ giải ngân tiền thư�
 
                       {/* Tổng nợ */}
                       <td className="py-3.5 px-3 text-right">
-                        <span className="font-black text-rose-600 dark:text-rose-400 text-sm sm:text-base">
-                          {formatCurrency(item.totalDebtThisWeek)}
-                        </span>
+                        {item.totalDebtThisWeek > 0 ? (
+                          <span className="font-black text-rose-600 dark:text-rose-400 text-sm sm:text-base">
+                            {formatCurrency(item.totalDebtThisWeek)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            0đ (Xong)
+                          </span>
+                        )}
                       </td>
 
                       {/* Hành động */}
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {/* NÚT TÍCH ĐÃ NỘP DÀNH CHO THỦ QUỸ */}
+                          {item.totalDebtThisWeek > 0 ? (
+                            <button
+                              onClick={() => {
+                                if (!isTreasurer) {
+                                  onOpenTreasurerAuth?.();
+                                  return;
+                                }
+                                onMarkAllSettled?.(item.user, currentWeekNumber);
+                                showToast(`Đã xác nhận ${item.user.name} đã nộp đủ! Thành viên này sẽ không bị nhắc nợ nữa 🎉`);
+                              }}
+                              disabled={isUpdating}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm shadow-emerald-600/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                              title="Thủ quỹ xác nhận đã nộp đầy đủ (không nhắc nợ thành viên này nữa)"
+                            >
+                              {isUpdating ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              )}
+                              <span>✓ Tích Đã Nộp</span>
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Hoàn tất</span>
+                            </span>
+                          )}
+
                           {/* Nút sao chép lời nhắc */}
-                          <button
-                            onClick={() => handleCopyPersonalReminder(item)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-                              isSelectedCopied
-                                ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
-                            }`}
-                            title="Sao chép tin nhắn nhắc nợ cá nhân cho VĐV này để gửi qua Zalo"
-                          >
-                            {isSelectedCopied ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-white" />
-                                <span>Đã chép</span>
-                              </>
-                            ) : (
-                              <>
-                                <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                                <span>Nhắc Zalo</span>
-                              </>
-                            )}
-                          </button>
+                          {item.totalDebtThisWeek > 0 && (
+                            <button
+                              onClick={() => handleCopyPersonalReminder(item)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 border cursor-pointer ${
+                                isSelectedCopied
+                                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
+                              }`}
+                              title="Sao chép tin nhắn nhắc nợ cá nhân cho VĐV này để gửi qua Zalo"
+                            >
+                              {isSelectedCopied ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-white" />
+                                  <span>Đã chép</span>
+                                </>
+                              ) : (
+                                <>
+                                  <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                                  <span>Nhắc Zalo</span>
+                                </>
+                              )}
+                            </button>
+                          )}
 
                           {/* Nút mở QR */}
-                          <button
-                            onClick={() => onOpenPaymentQr?.(item.user, item.totalDebtThisWeek, item.isUnpaidFee && item.currentWeekPenalty === 0 ? 'ENTRY_FEE' : 'TOTAL')}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
-                            title="Tạo mã QR VietQR điền sẵn số tiền nợ và cú pháp"
-                          >
-                            <QrCode className="w-3.5 h-3.5" />
-                            <span>Mã QR</span>
-                          </button>
-
-                          {/* Quyền Thủ quỹ */}
-                          {isTreasurer && item.isUnpaidFee && onTogglePaidFee && (
+                          {item.totalDebtThisWeek > 0 && (
                             <button
-                              onClick={() => onTogglePaidFee(item.user, true)}
-                              disabled={isUpdating}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
-                              title="Thủ quỹ xác nhận đã thu phí 200.000đ"
+                              onClick={() => onOpenPaymentQr?.(item.user, item.totalDebtThisWeek, item.isUnpaidFee && item.currentWeekPenalty === 0 ? 'ENTRY_FEE' : 'TOTAL')}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer"
+                              title="Tạo mã QR VietQR điền sẵn số tiền nợ và cú pháp"
                             >
-                              {isUpdating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              <span>Đã thu 200k</span>
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Mã QR</span>
                             </button>
                           )}
                         </div>

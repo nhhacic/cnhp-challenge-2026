@@ -29,8 +29,15 @@ export default function PersonalDebtBanner({
   const isClubOnly = Boolean(team?.isClubOnly || user.teamId === 'team-4');
   const isUnpaidFee = !isClubOnly && !user.isPaidFee;
   const currentWeekStat = userWeeklyStats.find((s) => s.weekNumber === currentWeekNumber);
-  const currentWeekPenalty = currentWeekStat?.totalPenaltyAmount || 0;
-  const totalCumulativePenalty = userWeeklyStats.reduce((sum, s) => sum + s.totalPenaltyAmount, 0);
+  const isCurrentWeekPenaltyPaid = Boolean(
+    currentWeekStat?.isPenaltyPaid ||
+    (user.paidPenaltyWeeks && user.paidPenaltyWeeks.includes(currentWeekNumber))
+  );
+  const currentWeekPenalty = isCurrentWeekPenaltyPaid ? 0 : (currentWeekStat?.totalPenaltyAmount || 0);
+  const totalCumulativePenalty = userWeeklyStats.reduce((sum, s) => {
+    const isPaid = s.isPenaltyPaid || (user.paidPenaltyWeeks && user.paidPenaltyWeeks.includes(s.weekNumber));
+    return sum + (isPaid ? 0 : s.totalPenaltyAmount);
+  }, 0);
 
   const feeAmount = isUnpaidFee ? 200000 : 0;
   const totalDebtThisWeek = feeAmount + currentWeekPenalty;

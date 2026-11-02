@@ -110,24 +110,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'toggle_paid_fee') {
-      const { userId, isPaidFee, callerStravaId, callerUserId, treasurerPin } = body;
+      const { userId, isPaidFee, callerStravaId, callerUserId, treasurerPin, isAdmin } = body;
       if (!userId) {
         return NextResponse.json({ error: 'Thiếu mã thành viên (userId)' }, { status: 400 });
       }
 
-      // Xác thực quyền: Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) mới có quyền xác nhận thu phí
+      // Xác thực quyền: Thủ quỹ Long Trịnh (Strava ID: 138319814) hoặc Quản trị viên
       const TREASURER_STRAVA_ID = '138319814';
       const TREASURER_USER_ID = 'user-138319814';
       const VALID_PINS = ['138319814', 'cnhp2026', '190306'];
 
       const isAuthorized =
+        isAdmin === true ||
         callerStravaId === TREASURER_STRAVA_ID ||
         callerUserId === TREASURER_USER_ID ||
         (treasurerPin && VALID_PINS.includes(String(treasurerPin).trim()));
 
       if (!isAuthorized) {
         return NextResponse.json(
-          { error: 'Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) mới có quyền xác nhận thu phí tham dự!' },
+          { error: 'Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) hoặc Quản trị viên mới có quyền xác nhận thu phí tham dự!' },
           { status: 403 }
         );
       }
@@ -138,6 +139,93 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Không tìm thấy thành viên' }, { status: 404 });
       }
       user.isPaidFee = typeof isPaidFee === 'boolean' ? isPaidFee : !user.isPaidFee;
+      await saveUserAsync(user);
+      return NextResponse.json({ success: true, user });
+    }
+
+    if (action === 'toggle_paid_penalty') {
+      const { userId, weekNumber, isPaidPenalty, callerStravaId, callerUserId, treasurerPin, isAdmin } = body;
+      if (!userId || !weekNumber) {
+        return NextResponse.json({ error: 'Thiếu thông tin thành viên hoặc tuần' }, { status: 400 });
+      }
+
+      const TREASURER_STRAVA_ID = '138319814';
+      const TREASURER_USER_ID = 'user-138319814';
+      const VALID_PINS = ['138319814', 'cnhp2026', '190306'];
+
+      const isAuthorized =
+        isAdmin === true ||
+        callerStravaId === TREASURER_STRAVA_ID ||
+        callerUserId === TREASURER_USER_ID ||
+        (treasurerPin && VALID_PINS.includes(String(treasurerPin).trim()));
+
+      if (!isAuthorized) {
+        return NextResponse.json(
+          { error: 'Chỉ Thủ quỹ Long Trịnh (Strava ID: 138319814) hoặc Quản trị viên mới có quyền xác nhận nộp phạt!' },
+          { status: 403 }
+        );
+      }
+
+      const data = await loadDataAsync();
+      const user = data.users.find((u) => u.id === userId);
+      if (!user) {
+        return NextResponse.json({ error: 'Không tìm thấy thành viên' }, { status: 404 });
+      }
+
+      const weekNum = Number(weekNumber);
+      const paidWeeks = new Set<number>(user.paidPenaltyWeeks || []);
+      const shouldBePaid = typeof isPaidPenalty === 'boolean' ? isPaidPenalty : !paidWeeks.has(weekNum);
+
+      if (shouldBePaid) {
+        paidWeeks.add(weekNum);
+      } else {
+        paidWeeks.delete(weekNum);
+      }
+      user.paidPenaltyWeeks = Array.from(paidWeeks).sort((a, b) => a - b);
+
+      await saveUserAsync(user);
+      return NextResponse.json({ success: true, user });
+    }
+
+    if (action === 'settle_user_debts') {
+      const { userId, weekNumber, settleFee, settlePenalty, callerStravaId, callerUserId, treasurerPin, isAdmin } = body;
+      if (!userId) {
+        return NextResponse.json({ error: 'Thiếu mã thành viên' }, { status: 400 });
+      }
+
+      const TREASURER_STRAVA_ID = '138319814';
+      const TREASURER_USER_ID = 'user-138319814';
+      const VALID_PINS = ['138319814', 'cnhp2026', '190306'];
+
+      const isAuthorized =
+        isAdmin === true ||
+        callerStravaId === TREASURER_STRAVA_ID ||
+        callerUserId === TREASURER_USER_ID ||
+        (treasurerPin && VALID_PINS.includes(String(treasurerPin).trim()));
+
+      if (!isAuthorized) {
+        return NextResponse.json(
+          { error: 'Chỉ Thủ quỹ Long Trịnh hoặc Quản trị viên mới có quyền xác nhận nộp tiền!' },
+          { status: 403 }
+        );
+      }
+
+      const data = await loadDataAsync();
+      const user = data.users.find((u) => u.id === userId);
+      if (!user) {
+        return NextResponse.json({ error: 'Không tìm thấy thành viên' }, { status: 404 });
+      }
+
+      if (settleFee !== undefined) {
+        user.isPaidFee = Boolean(settleFee);
+      }
+      if (settlePenalty && weekNumber) {
+        const weekNum = Number(weekNumber);
+        const paidWeeks = new Set<number>(user.paidPenaltyWeeks || []);
+        paidWeeks.add(weekNum);
+        user.paidPenaltyWeeks = Array.from(paidWeeks).sort((a, b) => a - b);
+      }
+
       await saveUserAsync(user);
       return NextResponse.json({ success: true, user });
     }

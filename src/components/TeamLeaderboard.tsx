@@ -320,10 +320,12 @@ export default function TeamLeaderboard({
         text += `⚡ Chân Chạy Tốc Độ: ${speedMaster.user.name} (Pace ${formatPace(speedMaster.stat.averagePaceSeconds)} - ${formatKm(speedMaster.stat.actualKm)})\n`;
       }
 
-      const deficitMembers = publishedMembers.filter((r) => !r.stat.isCompleted);
-      if (deficitMembers.length > 0) {
+      const unpaidDeficitMembers = publishedMembers.filter(
+        (r) => !r.stat.isCompleted && !r.stat.isPenaltyPaid && !(r.user.paidPenaltyWeeks || []).includes(currentWeekNumber)
+      );
+      if (unpaidDeficitMembers.length > 0) {
         text += `\n⚠️ DANH SÁCH CHƯA ĐẠT CHỈ TIÊU & PHẠT TUẦN:\n`;
-        deficitMembers.forEach((r) => {
+        unpaidDeficitMembers.forEach((r) => {
           const missDaysText = r.stat.missingDays > 0 ? `thiếu ${r.stat.missingDays}b` : '';
           const missKmText = r.stat.roundedDeficitKm > 0 ? `thiếu ${r.stat.roundedDeficitKm}km` : '';
           const missDetails = [missDaysText, missKmText].filter(Boolean).join(', ');
@@ -331,7 +333,7 @@ export default function TeamLeaderboard({
         });
         text += `\n💳 Kênh nộp phạt: Thủ quỹ TRINH LONG\nTechcombank: 19030671988989 (Cú pháp: CNHP PHAT [Tên] T${currentWeekNumber})\n`;
       } else {
-        text += `\n🎉 Chúc mừng 100% VĐV đều hoàn thành xuất sắc chỉ tiêu tuần! (0đ phạt)\n`;
+        text += `\n🎉 Chúc mừng toàn bộ VĐV đều hoàn thành xuất sắc chỉ tiêu hoặc đã nộp phạt đầy đủ! (0đ phạt còn thiếu)\n`;
       }
     }
 
